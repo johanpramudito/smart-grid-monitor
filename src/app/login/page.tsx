@@ -16,24 +16,41 @@ import Link from "next/link";
 
 // This new page at `/login` now handles user authentication.
 export default function LoginPage() {
-  const [email, setEmail] = useState("operator@smartgrid.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
-    // --- Firebase Authentication Logic Placeholder ---
-    // In a real application, you would replace this with:
-    // await signInWithEmailAndPassword(auth, email, password);
-    if (email && password) {
-      console.log("Simulating successful sign-in for:", email);
-      // On success, redirect to the main dashboard
-      router.push("/dashboard");
-    } else {
+    if (!email || !password) {
       setError("Please provide valid credentials.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/signin", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        setError(errorBody.message ?? "Failed to sign in.");
+        return;
+      }
+
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Sign-in error:", err);
+      setError("Unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -75,8 +92,9 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={isSubmitting}
               >
-                Sign In
+                {isSubmitting ? "Signing In..." : "Sign In"}
               </Button>
             </div>
           </form>
