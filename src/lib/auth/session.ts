@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { cookies as nextCookies, type RequestCookies } from 'next/headers';
+import { cookies as nextCookies } from 'next/headers';
 import type { NextResponse } from 'next/server';
 
 export const SESSION_COOKIE_NAME = 'sgm_session';
@@ -119,10 +119,8 @@ export function clearSessionCookie(response: NextResponse) {
   });
 }
 
-export async function getSessionFromCookies(
-  cookiesStore?: RequestCookies,
-): Promise<SessionUser | null> {
-  const store = cookiesStore ?? nextCookies();
+export async function getSessionFromCookies(): Promise<SessionUser | null> {
+  const store = await nextCookies();
   const token = store.get(SESSION_COOKIE_NAME)?.value;
 
   if (!token) {

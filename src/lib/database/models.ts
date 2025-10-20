@@ -82,8 +82,23 @@ export interface SwitchAgent {
 export interface EventLog {
   event_id: string; // Primary Key
   zone_agent_id?: string; // Foreign Key to ZoneAgent, optional if system-wide event
-  event_type: 'FAULT_DETECTED' | 'ISOLATION' | 'RESTORATION_SUCCESS' | 'RESTORATION_FAILURE' | 'SYSTEM_ERROR';
+  event_type: string;
   description: string;
   timestamp: Date;
   resolved: boolean;
+}
+
+/**
+ * Represents an embedded device (STM32 + ESP-01) reporting telemetry.
+ */
+export interface DeviceAgent {
+  device_id: string; // Primary Key
+  zone_agent_id: string; // Foreign Key to ZoneAgent
+  name?: string;
+  api_key_id: string;
+  api_key_hash: string;
+  firmware_version?: string;
+  last_seen?: Date;
+  created_at: Date;
+  updated_at: Date;
 }
