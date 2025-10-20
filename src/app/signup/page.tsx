@@ -20,6 +20,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
 
   const handleSignUp = async (e: React.FormEvent) => {
@@ -31,15 +32,40 @@ export default function SignUpPage() {
       return;
     }
 
-    // --- Firebase Authentication Logic Placeholder ---
-    // In a real application, you would replace this with:
-    // await createUserWithEmailAndPassword(auth, email, password);
-    if (email && password) {
-      console.log("Simulating account creation for:", email);
-      // On success, redirect to the dashboard
-      router.push("/dashboard");
-    } else {
+    if (!email || !password) {
       setError("Please fill out all fields.");
+      return;
+    }
+
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters long.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => ({}));
+        const formError = errorBody?.errors?.formErrors?.[0];
+        const fieldError = Object.values(errorBody?.errors?.fieldErrors ?? {})
+          .flat()
+          .find(Boolean);
+        setError(errorBody.message ?? formError ?? fieldError ?? "Failed to create account.");
+        return;
+      }
+
+      router.push("/dashboard");
+    } catch (err) {
+      console.error("Sign-up error:", err);
+      setError("Unexpected error occurred. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -94,8 +120,9 @@ export default function SignUpPage() {
               <Button
                 type="submit"
                 className="w-full bg-blue-600 hover:bg-blue-700"
+                disabled={isSubmitting}
               >
-                Sign Up
+                {isSubmitting ? "Creating Account..." : "Sign Up"}
               </Button>
             </div>
           </form>

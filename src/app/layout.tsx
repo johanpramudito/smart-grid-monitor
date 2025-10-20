@@ -42,7 +42,7 @@ export default function RootLayout({
         href="/apple-touch-icon.png"
       />
       <meta name="apple-mobile-web-app-title" content="Smart Grid Monitor" />
-      <link rel="manifest" href="/site.webmanifest" />
+      <link rel="manifest" href="./manifest.json" />
       <body className={`${poppins.variable} antialiased`}>{children}</body>
     </html>
   );
