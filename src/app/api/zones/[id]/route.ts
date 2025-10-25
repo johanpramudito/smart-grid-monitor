@@ -5,11 +5,13 @@ import { pool } from '../../../../lib/database/connection';
  * GET /api/zones/[id]
  * Fetches details and historical sensor data for a specific zone.
  */
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id: zoneId } = await context.params;
   const client = await pool.connect();
   try {
-    const zoneId = params.id;
-
     // Basic validation for UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(zoneId)) {
@@ -108,7 +110,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
     });
 
   } catch (error) {
-    console.error(`Error fetching data for zone ${params.id}:`, error);
+    console.error(`Error fetching data for zone ${zoneId}:`, error);
     const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json({ message: 'Internal Server Error', error: errorMessage }, { status: 500 });
   } finally {

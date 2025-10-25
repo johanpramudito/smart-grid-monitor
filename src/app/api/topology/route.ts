@@ -75,13 +75,14 @@ export async function GET() {
 
     // 1. Create Nodes from ZoneAgents
     // We'll calculate positions to lay them out in a simple row.
-    const nodes = zones.map((zone, index) => ({
+    const nodes = zones.map((zone) => ({
       id: zone.zone_agent_id.toString(), // React Flow requires string IDs
       type: 'default', // or a custom node type
-      position: { x: index * 250, y: 100 }, // Simple horizontal layout
       data: {
         label: `${zone.location_description || `Zone ${zone.feeder_number}`}`,
         status: zone.status,
+        feederNumber: zone.feeder_number,
+        isTie: zone.feeder_number === 99,
         activeFaults: Number(zone.active_faults),
         faultEventId: zone.active_fault_event_id ?? null,
         faultDescription: zone.fault_description ?? null,
@@ -118,7 +119,11 @@ export async function GET() {
       },
     }));
 
-    return NextResponse.json({ nodes, edges });
+    const tieClosed = zones
+      .filter((zone) => zone.feeder_number !== 99)
+      .some((zone) => zone.status === 'FAULT');
+
+    return NextResponse.json({ nodes, edges, tieClosed });
 
   } catch (error) {
     console.error('Error fetching topology data:', error);
