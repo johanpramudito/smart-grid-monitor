@@ -1,9 +1,4 @@
-"use client";
-
-import { useState } from "react";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -13,205 +8,104 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  ArrowUpDown,
-  Filter,
-} from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { CheckCircle, RefreshCw } from "lucide-react";
 
-// This page implements the "Log & History (3).png" UI.
-// It includes filtering, sorting, and pagination controls.
+// Define the structure of a log event based on our API response
+interface LogEvent {
+  event_id: number;
+  event_type: string;
+  description: string;
+  timestamp: string;
+  resolved: boolean;
+  zone_name: string | null;
+}
 
-const logData = [
-  {
-    timestamp: "2025-09-20 08:35:10",
-    agent: "Zone 2",
-    status: "FAULT",
-    voltage: "0V",
-    current: "0A",
-    description: "Overcurrent detected. Isolating zone.",
-  },
-  {
-    timestamp: "2025-09-20 08:35:12",
-    agent: "Zone 2",
-    status: "RESTORED",
-    voltage: "219.8V",
-    current: "6.1A",
-    description: "Rerouted power via Feeder 2.",
-  },
-  {
-    timestamp: "2025-09-20 08:36:00",
-    agent: "Zone 1",
-    status: "NORMAL",
-    voltage: "220.1V",
-    current: "5.3A",
-    description: "System nominal.",
-  },
-  {
-    timestamp: "2025-09-21 11:45:23",
-    agent: "Zone 3",
-    status: "NORMAL",
-    voltage: "221.5V",
-    current: "8.1A",
-    description: "System nominal.",
-  },
-  {
-    timestamp: "2025-09-22 15:02:18",
-    agent: "Zone 1",
-    status: "NORMAL",
-    voltage: "219.9V",
-    current: "4.9A",
-    description: "System nominal.",
-  },
-];
-
-type Status = "FAULT" | "RESTORED" | "NORMAL";
-
-const getBadgeClasses = (status: Status) => {
-  switch (status) {
-    case "FAULT":
-      return "bg-red-500/20 text-red-300 border-red-500/30";
-    case "RESTORED":
-      return "bg-blue-500/20 text-blue-300 border-blue-500/30";
-    case "NORMAL":
-      return "bg-green-500/20 text-green-300 border-green-500/30";
+// Helper to determine badge color based on event type
+const getBadgeForEvent = (eventType: string) => {
+  switch (eventType.toUpperCase()) {
+    case 'FAULT':
+      return <Badge variant="destructive">{eventType}</Badge>;
+    case 'SERVICE_RESTORATION':
+      return <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">{eventType}</Badge>;
+    case 'NORMAL':
+      return <Badge className="bg-green-500/20 text-green-300 border-green-500/30">{eventType}</Badge>;
     default:
-      return "bg-slate-500/20 text-slate-300 border-slate-500/30";
+      return <Badge variant="secondary">{eventType}</Badge>;
   }
 };
 
-export default function LogsPage() {
-  const [logs] = useState(logData);
+// This is now an async Server Component
+export default async function LogsPage() {
+  // Fetch data directly on the server
+  // Note: In a real app, the fetch URL should be an absolute path stored in environment variables.
+  const response = await fetch('http://localhost:3000/api/logs', {
+    cache: 'no-store', // Ensure we always get the latest logs
+  });
+  
+  if (!response.ok) {
+    return <p className="text-red-500">Failed to load logs.</p>;
+  }
+
+  const logs: LogEvent[] = await response.json();
 
   return (
     <div className="space-y-8">
       <div>
         <h2 className="text-3xl font-bold">Log & History</h2>
         <p className="text-slate-400">
-          Monitor and analyze system events and performance data
+          A record of all system events and automated actions.
         </p>
       </div>
 
       <Card className="bg-slate-800 border-slate-700 p-6 space-y-4">
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <Input
-              placeholder="Search logs, zones, descriptions..."
-              className="pl-10 bg-slate-700 border-slate-600 w-full"
-            />
-          </div>
-          <Input
-            type="text"
-            placeholder="From Date: 09/20/2025"
-            className="w-full md:w-48 bg-slate-700 border-slate-600"
-          />
-          <Input
-            type="text"
-            placeholder="To Date: 09/20/2025"
-            className="w-full md:w-48 bg-slate-700 border-slate-600"
-          />
-          <Button className="w-full md:w-auto">
-            <Filter className="mr-2 h-4 w-4" />
-            Apply Filter
-          </Button>
-        </div>
-
         <div className="border rounded-lg border-slate-700 overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-slate-700/50 border-b-slate-700">
-                {[
-                  "Timestamp",
-                  "Zone Agent",
-                  "Status",
-                  "Voltage",
-                  "Current",
-                  "Description",
-                ].map((header) => (
-                  <TableHead key={header} className="text-white px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {header}
-                      <ArrowUpDown className="h-4 w-4 text-slate-500" />
-                    </div>
-                  </TableHead>
-                ))}
+                <TableHead className="text-white">Timestamp</TableHead>
+                <TableHead className="text-white">Zone</TableHead>
+                <TableHead className="text-white">Event Type</TableHead>
+                <TableHead className="text-white">Description</TableHead>
+                <TableHead className="text-white">Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log) => (
-                <TableRow
-                  key={log.timestamp}
-                  className="border-t-slate-700 hover:bg-slate-700/30"
-                >
-                  <TableCell className="px-4 py-3 text-slate-300">
-                    {log.timestamp}
-                  </TableCell>
-                  <TableCell className="px-4 py-3">{log.agent}</TableCell>
-                  <TableCell className="px-4 py-3">
-                    <Badge className={getBadgeClasses(log.status as Status)}>
-                      {log.status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="px-4 py-3">{log.voltage}</TableCell>
-                  <TableCell className="px-4 py-3">{log.current}</TableCell>
-                  <TableCell className="px-4 py-3 text-slate-400">
-                    {log.description}
+              {logs.length > 0 ? (
+                logs.map((log) => (
+                  <TableRow
+                    key={log.event_id}
+                    className="border-t-slate-700 hover:bg-slate-700/30"
+                  >
+                    <TableCell className="text-slate-300">
+                      {new Date(log.timestamp).toLocaleString()}
+                    </TableCell>
+                    <TableCell>{log.zone_name || 'System'}</TableCell>
+                    <TableCell>{getBadgeForEvent(log.event_type)}</TableCell>
+                    <TableCell className="text-slate-400">
+                      {log.description}
+                    </TableCell>
+                    <TableCell>
+                      {log.resolved ? (
+                        <span className="flex items-center text-green-400">
+                          <CheckCircle className="w-4 h-4 mr-2" /> Resolved
+                        </span>
+                      ) : (
+                        <span className="flex items-center text-yellow-400">
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> Active
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center text-slate-400 py-8">
+                    No log events found.
                   </TableCell>
                 </TableRow>
-              ))}
+              )}
             </TableBody>
           </Table>
-        </div>
-
-        <div className="flex items-center justify-between pt-2 text-sm text-slate-400">
-          <div className="flex items-center gap-2">
-            <span>
-              Showing 1 to {logs.length} of {logs.length} entries
-            </span>
-            <Select defaultValue="10">
-              <SelectTrigger className="w-[120px] bg-slate-700 border-slate-600">
-                <SelectValue placeholder="Rows per page" />
-              </SelectTrigger>
-              <SelectContent className="bg-slate-800 text-white border-slate-700">
-                <SelectItem value="10">10 per page</SelectItem>
-                <SelectItem value="20">20 per page</SelectItem>
-                <SelectItem value="50">50 per page</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-slate-700 border-slate-600 hover:bg-slate-600"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-blue-600 border-blue-500 text-white hover:bg-blue-700"
-            >
-              1
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-slate-700 border-slate-600 hover:bg-slate-600"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </Card>
     </div>

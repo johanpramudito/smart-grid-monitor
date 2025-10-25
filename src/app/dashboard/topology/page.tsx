@@ -1,155 +1,447 @@
 "use client";
 
-import { Card } from "@/components/ui/card";
-import { AlertTriangle, Home, Sigma, RefreshCw, Zap } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import ReactFlow, {
+  Controls,
+  Background,
+  useNodesState,
+  useEdgesState,
+  Node,
+  Edge,
+} from "reactflow";
+import "reactflow/dist/style.css";
 
-// This page implements the "Grid Topology.png" UI.
-// The SVG diagram is rendered with conditional styles based on fault status.
+import { Button } from "@/components/ui/button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Terminal } from "lucide-react";
+
+type ZoneStatus = "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+
+type ZoneNodeData = {
+  label: string;
+  status: ZoneStatus;
+  feederNumber: number | null;
+  isTie: boolean;
+  activeFaults: number;
+  faultEventId: number | null;
+  faultDescription: string | null;
+  lastFaultAt: string | null;
+  deviceId: string | null;
+  deviceLastSeen: string | null;
+};
+
+type ZoneNode = Node<ZoneNodeData>;
+type FlisrResponsePayload = Record<string, unknown>;
+
+const DEFAULT_NODE_DATA: ZoneNodeData = {
+  label: "",
+  status: "NORMAL",
+  feederNumber: null,
+  isTie: false,
+  activeFaults: 0,
+  faultEventId: null,
+  faultDescription: null,
+  lastFaultAt: null,
+  deviceId: null,
+  deviceLastSeen: null,
+};
+
 export default function TopologyPage() {
-  const activeFaults = 1;
-  const selfHealingStatus = "Active";
+  const [nodes, setNodes, onNodesChange] = useNodesState<ZoneNodeData>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const linePathClass = "transition-all duration-500";
-  const activeLineColor = "#10B981"; // Green
-  const faultLineColor = "#EF4444"; // Red
+  const [flisrResult, setFlisrResult] = useState<FlisrResponsePayload | null>(null);
+  const [isFlisrLoading, setIsFlisrLoading] = useState(false);
+  const [faultEventId, setFaultEventId] = useState<number | null>(null);
+  const [tieClosed, setTieClosed] = useState(false);
+
+  const buildGraph = useCallback(
+    (data: { nodes: ZoneNode[]; tieClosed?: boolean }) => {
+      const mainZones = data.nodes
+        .filter((node) => !node.data.isTie)
+        .sort(
+          (a, b) => (a.data.feederNumber ?? 0) - (b.data.feederNumber ?? 0)
+        );
+      const tieZone = data.nodes.find((node) => node.data.isTie) ?? null;
+
+      const tieIsClosed =
+        data.tieClosed ?? mainZones.some((zone) => zone.data.status === "FAULT");
+
+      const baseTopY = 80;
+      const baseX = 220;
+      const spacing = 240;
+
+      const graphNodes: ZoneNode[] = [
+        {
+          id: "pln",
+          position: { x: 60, y: baseTopY },
+          data: { ...DEFAULT_NODE_DATA, label: "PLN" },
+          draggable: false,
+          selectable: false,
+          style: {
+            width: 90,
+            height: 90,
+            borderRadius: 9999,
+            background: "#0f172a",
+            border: "4px solid #1e293b",
+            color: "#f8fafc",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 700,
+            fontSize: 16,
+          },
+        },
+        {
+          id: "feeder1-label",
+          position: { x: baseX, y: baseTopY - 60 },
+          data: { ...DEFAULT_NODE_DATA, label: "Feeder 1" },
+          draggable: false,
+          selectable: false,
+          style: {
+            background: "transparent",
+            border: "none",
+            color: "#94a3b8",
+            fontWeight: 600,
+            pointerEvents: "none",
+          },
+        },
+        {
+          id: "feeder2-label",
+          position: { x: baseX, y: baseTopY + 140 },
+          data: { ...DEFAULT_NODE_DATA, label: "Feeder 2" },
+          draggable: false,
+          selectable: false,
+          style: {
+            background: "transparent",
+            border: "none",
+            color: "#94a3b8",
+            fontWeight: 600,
+            pointerEvents: "none",
+          },
+        },
+        {
+          id: "feeder2-start",
+          position: { x: 60, y: baseTopY + 150 },
+          data: { ...DEFAULT_NODE_DATA, label: "" },
+          draggable: false,
+          selectable: false,
+          style: {
+            width: 1,
+            height: 1,
+            border: "none",
+            background: "transparent",
+            pointerEvents: "none",
+          },
+        },
+      ];
+
+      const mainZoneNodes = mainZones.map((zone, index) => {
+        const x = baseX + index * spacing;
+        const isFault = zone.data.status === "FAULT";
+        const label =
+          zone.data.label || `Zone ${zone.data.feederNumber ?? index + 1}`;
+
+        return {
+          id: zone.id,
+          position: { x, y: baseTopY },
+          data: {
+            ...DEFAULT_NODE_DATA,
+            ...zone.data,
+            label: `V&A\n${label}`,
+          },
+          draggable: false,
+          selectable: true,
+          style: {
+            width: 120,
+            height: 120,
+            borderRadius: "9999px",
+            background: isFault ? "#ef4444" : "#1e293b",
+            border: `4px solid ${isFault ? "#ef4444" : "#1e293b"}`,
+            color: "#f8fafc",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            textAlign: "center",
+            whiteSpace: "pre-line",
+            fontWeight: 700,
+            fontSize: 16,
+          },
+        } satisfies ZoneNode;
+      });
+
+      graphNodes.push(...mainZoneNodes);
+
+      const lastZoneX =
+        mainZoneNodes.length > 0
+          ? mainZoneNodes[mainZoneNodes.length - 1].position.x ?? baseX
+          : baseX;
+
+      const feeder2Mid: ZoneNode = {
+        id: "feeder2-mid",
+        position: { x: lastZoneX, y: baseTopY + 150 },
+        data: { ...DEFAULT_NODE_DATA, label: "" },
+        draggable: false,
+        selectable: false,
+        style: {
+          width: 1,
+          height: 1,
+          border: "none",
+          background: "transparent",
+          pointerEvents: "none",
+        },
+      };
+
+      const tieNodeId = tieZone?.id ?? "tie";
+      const tieNodeX = lastZoneX + spacing;
+      const tieLabel = tieIsClosed ? "Tie Relay\nClosed" : "Tie Relay\nOpen";
+
+      const tieNode: ZoneNode = {
+        id: tieNodeId,
+        position: { x: tieNodeX, y: baseTopY + 60 },
+        data: {
+          ...DEFAULT_NODE_DATA,
+          ...tieZone?.data,
+          label: tieLabel,
+          isTie: true,
+        },
+        draggable: false,
+        selectable: false,
+        style: {
+          width: 120,
+          height: 120,
+          borderRadius: "9999px",
+          background: tieIsClosed ? "#22c55e" : "#0f172a",
+          border: `4px solid ${tieIsClosed ? "#22c55e" : "#475569"}`,
+          color: "#f8fafc",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+          whiteSpace: "pre-line",
+          fontWeight: 700,
+          fontSize: 16,
+        },
+      };
+
+      const feeder2End: ZoneNode = {
+        id: "feeder2-end",
+        position: { x: tieNodeX, y: baseTopY + 150 },
+        data: { ...DEFAULT_NODE_DATA, label: "" },
+        draggable: false,
+        selectable: false,
+        style: {
+          width: 1,
+          height: 1,
+          border: "none",
+          background: "transparent",
+          pointerEvents: "none",
+        },
+      };
+
+      graphNodes.push(feeder2Mid, tieNode, feeder2End);
+
+      const graphEdges: Edge[] = [];
+      const baseEdgeStyle = {
+        stroke: "#334155",
+        strokeWidth: 3,
+      };
+
+      let previousNodeId = "pln";
+      mainZones.forEach((zone) => {
+        const zoneId = zone.id;
+        const isFault = zone.data.status === "FAULT";
+        graphEdges.push({
+          id: `edge-${previousNodeId}-${zoneId}`,
+          source: previousNodeId,
+          target: zoneId,
+          type: "smoothstep",
+          animated: zone.data.status !== "OFFLINE",
+          style: {
+            ...baseEdgeStyle,
+            stroke: isFault ? "#ef4444" : "#334155",
+            strokeWidth: isFault ? 5 : 3,
+          },
+        });
+        previousNodeId = zoneId;
+      });
+
+      graphEdges.push(
+        {
+          id: "edge-pln-feeder2",
+          source: "pln",
+          target: "feeder2-start",
+          type: "smoothstep",
+          style: baseEdgeStyle,
+        },
+        {
+          id: "edge-feeder2-start-mid",
+          source: "feeder2-start",
+          target: "feeder2-mid",
+          type: "smoothstep",
+          style: baseEdgeStyle,
+        },
+        {
+          id: "edge-feeder2-mid-end",
+          source: "feeder2-mid",
+          target: "feeder2-end",
+          type: "smoothstep",
+          style: baseEdgeStyle,
+        }
+      );
+
+      if (mainZones.length > 0) {
+        const lastZoneId = mainZones[mainZones.length - 1].id;
+        const tieEdgeStyle = tieIsClosed
+          ? { stroke: "#22c55e", strokeWidth: 4 }
+          : { stroke: "#64748b", strokeWidth: 3, strokeDasharray: "6 4" };
+
+        graphEdges.push(
+          {
+            id: "edge-zone-tie",
+            source: lastZoneId,
+            target: tieNodeId,
+            type: "smoothstep",
+            animated: tieIsClosed,
+            style: tieEdgeStyle,
+          },
+          {
+            id: "edge-tie-feeder2",
+            source: tieNodeId,
+            target: "feeder2-end",
+            type: "smoothstep",
+            animated: tieIsClosed,
+            style: tieEdgeStyle,
+          }
+        );
+      }
+
+      const firstFaultNode = mainZones.find(
+        (zone) => zone.data.faultEventId !== null
+      );
+
+      return {
+        nodes: graphNodes,
+        edges: graphEdges,
+        faultEventId: firstFaultNode?.data.faultEventId ?? null,
+        tieClosed: tieIsClosed,
+      };
+    },
+    []
+  );
+
+  const fetchTopology = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/topology");
+      if (!response.ok) {
+        throw new Error("Failed to fetch topology data");
+      }
+      const data: { nodes: ZoneNode[]; tieClosed?: boolean } = await response.json();
+
+      const graph = buildGraph(data);
+      setNodes(graph.nodes);
+      setEdges(graph.edges);
+      setFaultEventId(graph.faultEventId);
+      setTieClosed(graph.tieClosed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [setNodes, setEdges, buildGraph]);
+
+  useEffect(() => {
+    fetchTopology();
+  }, [fetchTopology]);
+
+  const handleTriggerFlisr = async () => {
+    if (!faultEventId) {
+      setFlisrResult({ message: "No active fault event to process." });
+      return;
+    }
+    setIsFlisrLoading(true);
+    setFlisrResult(null);
+    try {
+      const response = await fetch("/api/flisr", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ faultEventId }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "An error occurred during the FLISR process.");
+      }
+      setFlisrResult(result);
+      fetchTopology();
+    } catch (error) {
+      setFlisrResult({ message: `Error: ${error instanceof Error ? error.message : "Unknown error"}` });
+    } finally {
+      setIsFlisrLoading(false);
+    }
+  };
+
+  if (isLoading) {
+    return <div>Loading Topology...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">Error: {error}</div>;
+  }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold">Grid Topology</h2>
-        <p className="text-slate-400">
-          Real-time electrical grid monitoring and fault detection
-        </p>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-3xl font-bold">Live Grid Topology</h2>
+          <p className="text-slate-400">
+            Dynamic visualization of the smart grid network with fault overlays.
+          </p>
+          <p className="text-slate-400 text-sm mt-1">
+            Tie Relay:{" "}
+            <span className={tieClosed ? "text-green-400 font-semibold" : "text-slate-300"}>
+              {tieClosed ? "Closed (fault detected)" : "Open"}
+            </span>
+          </p>
+        </div>
+        <Button onClick={handleTriggerFlisr} disabled={isFlisrLoading || faultEventId === null}>
+          {isFlisrLoading ? "Processing..." : "Trigger FLISR"}
+        </Button>
       </div>
 
-      <Card className="bg-slate-800 border-slate-700 p-8">
-        <div className="w-full max-w-4xl mx-auto">
-          <svg viewBox="0 0 800 300" className="w-full">
-            {/* Lines */}
-            <line
-              x1="120"
-              y1="100"
-              x2="250"
-              y2="100"
-              stroke={activeLineColor}
-              strokeWidth="3"
-              className={linePathClass}
-            />
-            <line
-              x1="350"
-              y1="100"
-              x2="450"
-              y2="100"
-              stroke={activeFaults > 0 ? faultLineColor : activeLineColor}
-              strokeWidth="3"
-              className={linePathClass}
-            />
-            <line
-              x1="550"
-              y1="100"
-              x2="650"
-              y2="100"
-              stroke={activeLineColor}
-              strokeWidth="3"
-              className={linePathClass}
-            />
-            <path
-              d="M 100 100 L 100 200 L 700 200 L 700 100"
-              stroke={activeLineColor}
-              strokeWidth="3"
-              fill="none"
-              className={linePathClass}
-            />
+      {flisrResult && (
+        <Alert>
+          <Terminal className="h-4 w-4" />
+          <AlertTitle>FLISR Process Report</AlertTitle>
+          <AlertDescription>
+            <pre className="text-xs whitespace-pre-wrap">
+              {JSON.stringify(flisrResult, null, 2)}
+            </pre>
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {/* Nodes */}
-            <g transform="translate(40, 80)">
-              <rect width="80" height="40" fill="#3B82F6" rx="8" />
-              <text
-                x="55"
-                y="25"
-                fill="white"
-                textAnchor="middle"
-                fontSize="14"
-                fontWeight="bold"
-              >
-                PLN
-              </text>
-              <Zap x="12" y="12" color="white" size="16" />
-            </g>
+      {faultEventId === null && (
+        <Alert>
+          <AlertDescription>
+            No unresolved faults detected. Restoration planner is on standby.
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {["Zone 1", "Zone 2", "Zone 3"].map((name, index) => (
-              <g key={name} transform={`translate(${200 * index + 250}, 80)`}>
-                <rect
-                  width="100"
-                  height="40"
-                  fill={index === 1 && activeFaults > 0 ? "#DC2626" : "#16A34A"}
-                  rx="8"
-                  className="transition-colors duration-500"
-                />
-                <text
-                  x="65"
-                  y="25"
-                  fill="white"
-                  textAnchor="middle"
-                  fontSize="14"
-                >
-                  {name}
-                </text>
-                <Home x="10" y="12" color="white" size="16" />
-              </g>
-            ))}
-
-            {/* Fault Icon */}
-            {activeFaults > 0 && (
-              <g transform="translate(395, 85)">
-                <AlertTriangle
-                  className="text-yellow-400"
-                  fill="currentColor"
-                  size={30}
-                />
-              </g>
-            )}
-
-            {/* Self-Healing Relay */}
-            <g transform="translate(550, 180)">
-              <rect width="140" height="50" fill="#0EA5E9" rx="8" />
-              <text
-                x="85"
-                y="30"
-                fill="white"
-                textAnchor="middle"
-                fontSize="14"
-              >
-                Self-Healing Relay
-              </text>
-              <RefreshCw x="10" y="15" color="white" size="20" />
-            </g>
-          </svg>
-        </div>
-      </Card>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="bg-slate-800 border-slate-700 p-6 flex flex-col items-center justify-center text-center">
-          <Sigma className="w-10 h-10 text-blue-400 mb-3" />
-          <p className="text-4xl font-bold">3</p>
-          <p className="text-sm text-slate-400 uppercase tracking-wider">
-            Total Zones
-          </p>
-        </Card>
-        <Card className="bg-slate-800 border-slate-700 p-6 flex flex-col items-center justify-center text-center">
-          <AlertTriangle className="w-10 h-10 text-red-500 mb-3" />
-          <p className="text-4xl font-bold">{activeFaults}</p>
-          <p className="text-sm text-slate-400 uppercase tracking-wider">
-            Active Faults
-          </p>
-        </Card>
-        <Card className="bg-slate-800 border-slate-700 p-6 flex flex-col items-center justify-center text-center">
-          <RefreshCw className="w-10 h-10 text-yellow-400 mb-3" />
-          <p className="text-2xl font-bold">{selfHealingStatus}</p>
-          <p className="text-sm text-slate-400 uppercase tracking-wider">
-            Self-Healing
-          </p>
-        </Card>
+      <div className="w-full h-[60vh] border rounded-lg border-slate-700">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          fitView
+        >
+          <Controls />
+          <Background color="#aaa" gap={16} />
+        </ReactFlow>
       </div>
     </div>
   );
