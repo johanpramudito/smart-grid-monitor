@@ -43,10 +43,11 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchData() {
       try {
+        setError(null);
         // Fetch both stats and zone details in parallel
         const [statsResponse, topologyResponse] = await Promise.all([
-          fetch("/api/dashboard-stats"),
-          fetch("/api/topology"),
+          fetch("/api/dashboard-stats", { cache: "no-store" }),
+          fetch("/api/topology", { cache: "no-store" }),
         ]);
 
         if (!statsResponse.ok || !topologyResponse.ok) {
