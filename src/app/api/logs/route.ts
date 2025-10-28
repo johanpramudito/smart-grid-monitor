@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { pool } from '../../../lib/database/connection';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * GET /api/logs
  * Fetches all system events from the EventLog table.
