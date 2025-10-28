@@ -59,23 +59,35 @@ export default function ZoneDetailPage() {
   useEffect(() => {
     if (!id) return;
 
-    async function fetchData() {
+    let isActive = true;
+
+    const fetchData = async () => {
       try {
-        const response = await fetch(`/api/zones/${id}`);
+        const response = await fetch(`/api/zones/${id}`, { cache: "no-store" });
         if (!response.ok) {
           const errorData = await response.json();
           throw new Error(errorData.message || "Failed to fetch zone data.");
         }
         const data: ZoneData = await response.json();
+        if (!isActive) return;
         setZoneData(data);
+        setError(null);
       } catch (err) {
+        if (!isActive) return;
         setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
+        if (!isActive) return;
         setIsLoading(false);
       }
-    }
+    };
 
     fetchData();
+    const intervalId = window.setInterval(fetchData, 5000);
+
+    return () => {
+      isActive = false;
+      window.clearInterval(intervalId);
+    };
   }, [id]);
 
   if (isLoading) {
