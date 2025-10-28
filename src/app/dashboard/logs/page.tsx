@@ -1,3 +1,7 @@
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+import { headers } from "next/headers";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,7 +42,14 @@ const getBadgeForEvent = (eventType: string) => {
 export default async function LogsPage() {
   // Fetch data directly on the server
   // Note: In a real app, the fetch URL should be an absolute path stored in environment variables.
-  const response = await fetch('http://localhost:3000/api/logs', {
+  const headerStore = headers();
+  const host = headerStore.get("host") ?? process.env.VERCEL_URL ?? "localhost:3000";
+  const protocol =
+    headerStore.get("x-forwarded-proto") ??
+    (process.env.NODE_ENV === "production" ? "https" : "http");
+  const baseUrl = host.startsWith("http") ? host : `${protocol}://${host}`;
+
+  const response = await fetch(`${baseUrl}/api/logs`, {
     cache: 'no-store', // Ensure we always get the latest logs
   });
   
