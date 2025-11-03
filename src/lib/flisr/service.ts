@@ -13,6 +13,7 @@ import {
   ZoneState,
   ZoneStatus,
 } from "./types";
+import { publishSwitchCommand } from "../mqtt/client";
 
 async function fetchFaultContext(client: PoolClient, faultEventId: number): Promise<FaultContext> {
   const faultQuery = `
@@ -119,6 +120,8 @@ async function persistOutcome(
 ) {
   await client.query("BEGIN");
   try {
+    const timestamp = new Date().toISOString();
+
     // Mark the primary faulted connection as isolated.
     await client.query(
       `
@@ -130,6 +133,15 @@ async function persistOutcome(
       `,
       [faultContext.gridConnectionId],
     );
+
+    // Publish MQTT command to open the faulted switch
+    await publishSwitchCommand({
+      gridConnectionId: faultContext.gridConnectionId,
+      command: 'OPEN',
+      timestamp,
+      source: 'FLISR',
+      reason: 'Isolate detected faulted feeder segment',
+    });
 
     for (const action of plan.actions) {
       if (action.action === "CLOSE_SWITCH") {
@@ -143,6 +155,15 @@ async function persistOutcome(
           `,
           [action.target_connection_id],
         );
+
+        // Publish MQTT command to close the tie switch
+        await publishSwitchCommand({
+          gridConnectionId: action.target_connection_id,
+          command: 'CLOSE',
+          timestamp,
+          source: 'FLISR',
+          reason: action.reason,
+        });
       }
 
       const description = [

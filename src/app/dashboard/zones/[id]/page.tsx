@@ -55,6 +55,8 @@ export default function ZoneDetailPage() {
   const [zoneData, setZoneData] = useState<ZoneData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [relayControlLoading, setRelayControlLoading] = useState(false);
+  const [relayControlMessage, setRelayControlMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -89,6 +91,49 @@ export default function ZoneDetailPage() {
       window.clearInterval(intervalId);
     };
   }, [id]);
+
+  const handleRelayControl = async (command: 'ON' | 'OFF') => {
+    if (!id) return;
+
+    setRelayControlLoading(true);
+    setRelayControlMessage(null);
+
+    try {
+      const response = await fetch('/api/relay/control', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          zoneAgentId: id,
+          relayNumber: 1, // Default to relay 1
+          command,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.message || result.error || 'Failed to control relay');
+      }
+
+      setRelayControlMessage(`✓ ${result.message}`);
+
+      // Refresh zone data to show updated status
+      const refreshResponse = await fetch(`/api/zones/${id}`, { cache: 'no-store' });
+      if (refreshResponse.ok) {
+        const data: ZoneData = await refreshResponse.json();
+        setZoneData(data);
+      }
+    } catch (err) {
+      setRelayControlMessage(
+        `✗ Error: ${err instanceof Error ? err.message : 'Unknown error'}`
+      );
+    } finally {
+      setRelayControlLoading(false);
+
+      // Clear message after 5 seconds
+      setTimeout(() => setRelayControlMessage(null), 5000);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -224,12 +269,29 @@ export default function ZoneDetailPage() {
               <CardTitle>Manual Override</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full bg-green-600 hover:bg-green-700" disabled={isFault}>
-                <Power className="mr-2 h-4 w-4" />
+              <Button
+                className="w-full bg-green-600 hover:bg-green-700"
+                disabled={isFault || relayControlLoading}
+                onClick={() => handleRelayControl('ON')}
+              >
+                {relayControlLoading ? (
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Power className="mr-2 h-4 w-4" />
+                )}
                 Force Relay ON
               </Button>
-              <Button variant="destructive" className="w-full" disabled={!isFault}>
-                <PowerOff className="mr-2 h-4 w-4" />
+              <Button
+                variant="destructive"
+                className="w-full"
+                disabled={isFault || relayControlLoading}
+                onClick={() => handleRelayControl('OFF')}
+              >
+                {relayControlLoading ? (
+                  <Loader className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <PowerOff className="mr-2 h-4 w-4" />
+                )}
                 Force Relay OFF
               </Button>
               {isFault && (
@@ -238,6 +300,13 @@ export default function ZoneDetailPage() {
                   <AlertTitle>Override Disabled</AlertTitle>
                   <AlertDescription>
                     Manual control is disabled during a fault condition.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {relayControlMessage && (
+                <Alert className={relayControlMessage.startsWith('✓') ? 'border-green-500 bg-green-950' : 'border-red-500 bg-red-950'}>
+                  <AlertDescription className={relayControlMessage.startsWith('✓') ? 'text-green-200' : 'text-red-200'}>
+                    {relayControlMessage}
                   </AlertDescription>
                 </Alert>
               )}

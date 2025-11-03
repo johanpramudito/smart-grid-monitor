@@ -1,7 +1,6 @@
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+"use client";
 
-import { headers } from "next/headers";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -38,26 +37,50 @@ const getBadgeForEvent = (eventType: string) => {
   }
 };
 
-// This is now an async Server Component
-export default async function LogsPage() {
-  // Fetch data directly on the server
-  // Note: In a real app, the fetch URL should be an absolute path stored in environment variables.
-  const headerStore = headers();
-  const host = headerStore.get("host") ?? process.env.VERCEL_URL ?? "localhost:3000";
-  const protocol =
-    headerStore.get("x-forwarded-proto") ??
-    (process.env.NODE_ENV === "production" ? "https" : "http");
-  const baseUrl = host.startsWith("http") ? host : `${protocol}://${host}`;
+// Converted to Client Component with automatic polling
+export default function LogsPage() {
+  const [logs, setLogs] = useState<LogEvent[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const response = await fetch(`${baseUrl}/api/logs`, {
-    cache: 'no-store', // Ensure we always get the latest logs
-  });
-  
-  if (!response.ok) {
-    return <p className="text-red-500">Failed to load logs.</p>;
+  const fetchLogs = async () => {
+    try {
+      const response = await fetch("/api/logs", {
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to load logs");
+      }
+
+      const data: LogEvent[] = await response.json();
+      setLogs(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "An unknown error occurred");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+
+    // Auto-refresh logs every 5 seconds to show live updates from MQTT devices
+    const interval = setInterval(() => {
+      fetchLogs();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  if (isLoading) {
+    return <div>Loading logs...</div>;
   }
 
-  const logs: LogEvent[] = await response.json();
+  if (error) {
+    return <p className="text-red-500">Failed to load logs: {error}</p>;
+  }
 
   return (
     <div className="space-y-8">
