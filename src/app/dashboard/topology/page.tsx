@@ -355,6 +355,13 @@ export default function TopologyPage() {
 
   useEffect(() => {
     fetchTopology();
+
+    // Auto-refresh topology every 5 seconds to show live updates from MQTT devices
+    const interval = setInterval(() => {
+      fetchTopology();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [fetchTopology]);
 
   const handleTriggerFlisr = async () => {
