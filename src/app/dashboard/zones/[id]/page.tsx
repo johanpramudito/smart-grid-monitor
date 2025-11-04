@@ -27,7 +27,7 @@ import {
 interface ZoneDetails {
   zone_agent_id: string;
   location_description: string;
-  status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+  status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE" | "MANUAL";
   feeder_number: number;
   created_at: string;
   active_faults: number;
@@ -43,7 +43,7 @@ interface AllZonesStatus {
     zone_agent_id: string;
     location_description: string;
     feeder_number: number;
-    status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+    status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE" | "MANUAL";
     active_faults: number;
   }>;
 }
@@ -64,7 +64,7 @@ interface TopologyNode {
   data: {
     label: string;
     feederNumber: number;
-    status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+    status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE" | "MANUAL";
     activeFaults: number;
   };
 }
