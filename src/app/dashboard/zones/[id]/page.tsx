@@ -92,7 +92,7 @@ export default function ZoneDetailPage() {
     };
   }, [id]);
 
-  const handleRelayControl = async (command: 'ON' | 'OFF') => {
+  const handleRelayControl = async (command: 'CLOSED' | 'OPEN') => {
     if (!id) return;
 
     setRelayControlLoading(true);
@@ -269,40 +269,40 @@ export default function ZoneDetailPage() {
               <CardTitle>Manual Override</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {isFault && (
+                <Alert variant="destructive" className="mb-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>⚠️ Warning: Fault Detected</AlertTitle>
+                  <AlertDescription>
+                    System is in FAULT state. Manual override will bypass protection systems. Use with caution!
+                  </AlertDescription>
+                </Alert>
+              )}
               <Button
                 className="w-full bg-green-600 hover:bg-green-700"
-                disabled={isFault || relayControlLoading}
-                onClick={() => handleRelayControl('ON')}
+                disabled={relayControlLoading}
+                onClick={() => handleRelayControl('CLOSED')}
               >
                 {relayControlLoading ? (
                   <Loader className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Power className="mr-2 h-4 w-4" />
                 )}
-                Force Relay ON
+                Force Relay CLOSED
               </Button>
               <Button
                 variant="destructive"
                 className="w-full"
-                disabled={isFault || relayControlLoading}
-                onClick={() => handleRelayControl('OFF')}
+                disabled={relayControlLoading}
+                onClick={() => handleRelayControl('OPEN')}
               >
                 {relayControlLoading ? (
                   <Loader className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <PowerOff className="mr-2 h-4 w-4" />
                 )}
-                Force Relay OFF
+                Force Relay OPEN
               </Button>
-              {isFault && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Override Disabled</AlertTitle>
-                  <AlertDescription>
-                    Manual control is disabled during a fault condition.
-                  </AlertDescription>
-                </Alert>
-              )}
               {relayControlMessage && (
                 <Alert className={relayControlMessage.startsWith('✓') ? 'border-green-500 bg-green-950' : 'border-red-500 bg-red-950'}>
                   <AlertDescription className={relayControlMessage.startsWith('✓') ? 'text-green-200' : 'text-red-200'}>
