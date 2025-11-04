@@ -27,7 +27,8 @@ import {
 interface ZoneDetails {
   zone_agent_id: string;
   location_description: string;
-  status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+  status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE" | "MANUAL";
+  feeder_number: number;
   created_at: string;
   active_faults: number;
   active_fault_event_id: number | null;
@@ -35,6 +36,16 @@ interface ZoneDetails {
   fault_timestamp: string | null;
   device_id: string | null;
   device_last_seen: string | null;
+}
+
+interface AllZonesStatus {
+  zones: Array<{
+    zone_agent_id: string;
+    location_description: string;
+    feeder_number: number;
+    status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE" | "MANUAL";
+    active_faults: number;
+  }>;
 }
 
 interface SensorReading {
@@ -48,11 +59,22 @@ interface ZoneData {
   history: SensorReading[];
 }
 
+interface TopologyNode {
+  id: string;
+  data: {
+    label: string;
+    feederNumber: number;
+    status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE" | "MANUAL";
+    activeFaults: number;
+  };
+}
+
 export default function ZoneDetailPage() {
   const params = useParams();
   const { id } = params;
 
   const [zoneData, setZoneData] = useState<ZoneData | null>(null);
+  const [allZones, setAllZones] = useState<AllZonesStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [relayControlLoading, setRelayControlLoading] = useState(false);
@@ -73,6 +95,26 @@ export default function ZoneDetailPage() {
         const data: ZoneData = await response.json();
         if (!isActive) return;
         setZoneData(data);
+
+        // If this is a tie relay (feeder_number 99), fetch all zones for FLISR dashboard
+        if (data.details.feeder_number === 99) {
+          const topologyResponse = await fetch('/api/topology', { cache: 'no-store' });
+          if (topologyResponse.ok) {
+            const topologyData: { nodes: TopologyNode[] } = await topologyResponse.json();
+            setAllZones({
+              zones: topologyData.nodes
+                .filter((node: TopologyNode) => node.data.feederNumber !== 99)
+                .map((node: TopologyNode) => ({
+                  zone_agent_id: node.id,
+                  location_description: node.data.label,
+                  feeder_number: node.data.feederNumber,
+                  status: node.data.status,
+                  active_faults: node.data.activeFaults,
+                }))
+            });
+          }
+        }
+
         setError(null);
       } catch (err) {
         if (!isActive) return;
@@ -92,7 +134,7 @@ export default function ZoneDetailPage() {
     };
   }, [id]);
 
-  const handleRelayControl = async (command: 'ON' | 'OFF') => {
+  const handleRelayControl = async (command: 'CLOSED' | 'OPEN') => {
     if (!id) return;
 
     setRelayControlLoading(true);
@@ -154,19 +196,170 @@ export default function ZoneDetailPage() {
 
   const { details, history } = zoneData;
   const isFault = details.status === "FAULT";
+  const isTieRelay = details.feeder_number === 99;
+  const isManualMode = details.status === "MANUAL";
+
   const formattedHistory = history.map(h => ({
       ...h,
       time: new Date(h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   }));
 
+  // FLISR logic for tie relay
+  const anyZoneFaulted = allZones?.zones.some(z => z.status === 'FAULT') ?? false;
+  const faultedZones = allZones?.zones.filter(z => z.status === 'FAULT') ?? [];
+
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-3xl font-bold">{details.location_description} Details</h2>
+        <h2 className="text-3xl font-bold">
+          {isTieRelay ? "⚡ " : ""}{details.location_description} Details
+        </h2>
         <p className="text-slate-400">
-          Real-time monitoring and control for Zone ID: {details.zone_agent_id}
+          {isTieRelay
+            ? "FLISR (Fault Location, Isolation, and Service Restoration) Control System"
+            : `Real-time monitoring and control for Zone ID: ${details.zone_agent_id}`}
         </p>
       </div>
+
+      {/* FLISR Status Banner - Only for Tie Relay */}
+      {isTieRelay && (
+        <Card className={`border-2 ${
+          isManualMode
+            ? 'bg-yellow-950 border-yellow-500'
+            : anyZoneFaulted
+              ? 'bg-red-950 border-red-500'
+              : 'bg-blue-950 border-blue-500'
+        }`}>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span className="flex items-center">
+                {isManualMode ? (
+                  <>
+                    <AlertTriangle className="w-6 h-6 mr-3 text-yellow-400" />
+                    Manual Override Active
+                  </>
+                ) : anyZoneFaulted ? (
+                  <>
+                    <AlertTriangle className="w-6 h-6 mr-3 text-red-400" />
+                    FLISR Activated - Fault Detected
+                  </>
+                ) : (
+                  <>
+                    <Power className="w-6 h-6 mr-3 text-blue-400" />
+                    FLISR Automatic Mode - Normal Operation
+                  </>
+                )}
+              </span>
+              <Badge className={
+                isManualMode
+                  ? 'bg-yellow-500 text-yellow-950'
+                  : anyZoneFaulted
+                    ? 'bg-red-500 text-white'
+                    : 'bg-blue-500 text-white'
+              }>
+                {isManualMode ? 'MANUAL' : anyZoneFaulted ? 'FAULT' : 'NORMAL'}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {isManualMode ? (
+              <div className="text-yellow-200">
+                <p className="font-semibold mb-2">🎮 Manual Control Mode</p>
+                <p className="text-sm">
+                  Tie relay is under manual control. Automatic FLISR logic is bypassed.
+                  The system will not automatically respond to zone faults until manual mode is exited.
+                </p>
+              </div>
+            ) : anyZoneFaulted ? (
+              <div className="text-red-200">
+                <p className="font-semibold mb-2">⚡ FLISR Active - Service Restoration</p>
+                <p className="text-sm mb-3">
+                  Fault detected in {faultedZones.map(z => z.location_description).join(', ')}.
+                  Tie relay has automatically <strong>CLOSED</strong> to restore power to healthy zones.
+                </p>
+                <div className="bg-red-900/30 p-3 rounded-md border border-red-700">
+                  <p className="text-xs font-mono">
+                    <strong>FLISR Logic:</strong> Zone fault → Isolate faulted zone → Close tie relay → Restore service to healthy zones
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="text-blue-200">
+                <p className="font-semibold mb-2">✓ All Systems Normal</p>
+                <p className="text-sm mb-3">
+                  All zones are operating normally. Tie relay is <strong>OPEN</strong> to maintain zone isolation.
+                  FLISR will automatically close the tie relay if any zone experiences a fault.
+                </p>
+                <div className="bg-blue-900/30 p-3 rounded-md border border-blue-700">
+                  <p className="text-xs font-mono">
+                    <strong>Normal Operation:</strong> All zones powered independently → Tie relay OPEN → Zones isolated
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Zone Health Monitoring - Only for Tie Relay */}
+      {isTieRelay && allZones && (
+        <Card className="bg-slate-800 border-slate-700">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <History className="w-5 h-5 mr-3" />
+              Zone Health Monitor
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {allZones.zones.map((zone) => (
+                <div
+                  key={zone.zone_agent_id}
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    zone.status === 'FAULT'
+                      ? 'bg-red-950 border-red-500'
+                      : 'bg-green-950 border-green-500'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold">{zone.location_description}</h3>
+                    {zone.status === 'FAULT' ? (
+                      <AlertTriangle className="w-5 h-5 text-red-400" />
+                    ) : (
+                      <Power className="w-5 h-5 text-green-400" />
+                    )}
+                  </div>
+                  <div className="text-sm space-y-1">
+                    <p className={zone.status === 'FAULT' ? 'text-red-300' : 'text-green-300'}>
+                      Status: <strong>{zone.status}</strong>
+                    </p>
+                    <p className="text-slate-400">
+                      Feeder: {zone.feeder_number}
+                    </p>
+                    {zone.active_faults > 0 && (
+                      <p className="text-red-400">
+                        Active Faults: {zone.active_faults}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {anyZoneFaulted && (
+              <div className="mt-4 p-3 bg-red-900/30 border border-red-700 rounded-md">
+                <p className="text-red-200 text-sm">
+                  ⚠️ <strong>FLISR Action:</strong> Tie relay is CLOSED to restore power to healthy zones ({
+                    allZones.zones
+                      .filter(z => z.status !== 'FAULT')
+                      .map(z => z.location_description)
+                      .join(', ')
+                  })
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -209,13 +402,47 @@ export default function ZoneDetailPage() {
           {/* Side Panels */}
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>
-              <CardTitle>System Status</CardTitle>
+              <CardTitle>{isTieRelay ? "FLISR System Status" : "System Status"}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-slate-400">Zone Agent</span>
+                <span className="text-slate-400">{isTieRelay ? "FLISR Mode" : "Zone Agent"}</span>
                 <Badge variant={isFault ? "destructive" : "default"}>{details.status}</Badge>
               </div>
+              {isTieRelay && (
+                <>
+                  <div className="flex justify-between items-start text-sm">
+                    <span className="text-slate-400 pr-2">Relay State</span>
+                    <span className={`text-right font-semibold ${
+                      isManualMode
+                        ? 'text-yellow-300'
+                        : anyZoneFaulted
+                          ? 'text-red-300'
+                          : 'text-green-300'
+                    }`}>
+                      {isManualMode
+                        ? 'MANUAL CONTROL'
+                        : anyZoneFaulted
+                          ? 'CLOSED (Restoring Service)'
+                          : 'OPEN (Normal Isolation)'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-start text-sm">
+                    <span className="text-slate-400 pr-2">Automatic Control</span>
+                    <span className={`text-right ${isManualMode ? 'text-yellow-300' : 'text-green-300'}`}>
+                      {isManualMode ? 'Bypassed' : 'Active'}
+                    </span>
+                  </div>
+                  {anyZoneFaulted && !isManualMode && (
+                    <div className="flex justify-between items-start text-sm">
+                      <span className="text-slate-400 pr-2">Faulted Zones</span>
+                      <span className="text-right text-red-300">
+                        {faultedZones.map(z => z.location_description).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
               <div className="flex justify-between items-center text-sm">
                 <span className="text-slate-400 flex items-center">
                   <History className="mr-2 h-4 w-4" />
@@ -269,39 +496,66 @@ export default function ZoneDetailPage() {
               <CardTitle>Manual Override</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              {isTieRelay && !isManualMode && anyZoneFaulted && (
+                <Alert variant="destructive" className="mb-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>⚠️ Critical: FLISR Active</AlertTitle>
+                  <AlertDescription>
+                    FLISR is actively restoring service to healthy zones. Manual override will bypass automatic fault isolation.
+                    This may cause service interruption to healthy zones!
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isTieRelay && isManualMode && (
+                <Alert className="mb-3 border-yellow-500 bg-yellow-950">
+                  <AlertTriangle className="h-4 w-4 text-yellow-400" />
+                  <AlertTitle className="text-yellow-300">FLISR Bypassed</AlertTitle>
+                  <AlertDescription className="text-yellow-200">
+                    Automatic FLISR control is currently disabled. The system will NOT respond to zone faults automatically.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {!isTieRelay && isFault && (
+                <Alert variant="destructive" className="mb-3">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>⚠️ Warning: Fault Detected</AlertTitle>
+                  <AlertDescription>
+                    System is in FAULT state. Manual override will bypass protection systems. Use with caution!
+                  </AlertDescription>
+                </Alert>
+              )}
               <Button
                 className="w-full bg-green-600 hover:bg-green-700"
-                disabled={isFault || relayControlLoading}
-                onClick={() => handleRelayControl('ON')}
+                disabled={relayControlLoading}
+                onClick={() => handleRelayControl('CLOSED')}
               >
                 {relayControlLoading ? (
                   <Loader className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <Power className="mr-2 h-4 w-4" />
                 )}
-                Force Relay ON
+                {isTieRelay ? 'Manual CLOSE Tie Relay' : 'Force Relay CLOSED'}
               </Button>
               <Button
                 variant="destructive"
                 className="w-full"
-                disabled={isFault || relayControlLoading}
-                onClick={() => handleRelayControl('OFF')}
+                disabled={relayControlLoading}
+                onClick={() => handleRelayControl('OPEN')}
               >
                 {relayControlLoading ? (
                   <Loader className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <PowerOff className="mr-2 h-4 w-4" />
                 )}
-                Force Relay OFF
+                {isTieRelay ? 'Manual OPEN Tie Relay' : 'Force Relay OPEN'}
               </Button>
-              {isFault && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Override Disabled</AlertTitle>
-                  <AlertDescription>
-                    Manual control is disabled during a fault condition.
-                  </AlertDescription>
-                </Alert>
+              {isTieRelay && (
+                <div className="mt-3 p-3 bg-slate-700 rounded-md border border-slate-600">
+                  <p className="text-xs text-slate-300">
+                    <strong>Note:</strong> Manual control will {isManualMode ? 'remain active' : 'bypass FLISR automatic control'}.
+                    {!isManualMode && ' The system will not automatically respond to zone faults until you exit manual mode.'}
+                  </p>
+                </div>
               )}
               {relayControlMessage && (
                 <Alert className={relayControlMessage.startsWith('✓') ? 'border-green-500 bg-green-950' : 'border-red-500 bg-red-950'}>

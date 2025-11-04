@@ -56,7 +56,7 @@ export function getMqttClient(): MqttClient {
 /**
  * Relay command types
  */
-export type RelayCommand = 'ON' | 'OFF';
+export type RelayCommand = 'CLOSED' | 'OPEN' | 'ON' | 'OFF';
 
 /**
  * MQTT topic structure for relay control

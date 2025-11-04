@@ -17,8 +17,8 @@ import { publishRelayCommand, RelayCommand } from '@/lib/mqtt/client';
 const relayControlSchema = z.object({
   zoneAgentId: z.string().uuid('Invalid zone agent ID format'),
   relayNumber: z.number().int().positive('Relay number must be positive'),
-  command: z.enum(['ON', 'OFF'], {
-    message: 'Command must be either ON or OFF',
+  command: z.enum(['CLOSED', 'OPEN', 'ON', 'OFF'], {
+    message: 'Command must be CLOSED, OPEN, ON, or OFF',
   }),
 });
 
@@ -40,7 +40,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const { zoneAgentId, relayNumber, command } = validation.data;
+    const { zoneAgentId, relayNumber, command: rawCommand } = validation.data;
+
+    // Normalize command: CLOSED/ON -> CLOSED, OPEN/OFF -> OPEN
+    const command = rawCommand === 'ON' ? 'CLOSED' : rawCommand === 'OFF' ? 'OPEN' : rawCommand;
 
     // Check if zone exists and is not in FAULT state
     const zoneCheck = await client.query(
@@ -61,16 +64,9 @@ export async function POST(request: Request) {
 
     const zone = zoneCheck.rows[0];
 
-    // Prevent manual override during fault condition
-    if (zone.status === 'FAULT') {
-      return NextResponse.json(
-        {
-          error: 'Manual control disabled',
-          message: 'Cannot manually control relay during a fault condition',
-        },
-        { status: 403 }
-      );
-    }
+    // Allow manual override even during fault (removed restriction)
+    // WARNING: This allows operators to override protection systems
+    // Consider logging this as a critical action for audit trail
 
     // Check if relay exists for this zone
     const relayCheck = await client.query(
@@ -93,7 +89,7 @@ export async function POST(request: Request) {
     }
 
     const relay = relayCheck.rows[0];
-    const newStatus = command === 'ON' ? 'CLOSED' : 'OPEN';
+    const newStatus = command === 'CLOSED' ? 'CLOSED' : 'OPEN';
 
     // Check if the relay is already in the desired state
     if (relay.status === newStatus) {
@@ -126,6 +122,12 @@ export async function POST(request: Request) {
       );
 
       // Log the manual override action to EventLog
+      // Add special warning if overriding during fault
+      const isFaultOverride = zone.status === 'FAULT';
+      const description = isFaultOverride
+        ? `⚠️ CRITICAL: Manual relay control during FAULT - Relay ${relayNumber} turned ${command} (${newStatus})`
+        : `Manual relay control: Relay ${relayNumber} turned ${command} (${newStatus})`;
+
       await client.query(
         `
         INSERT INTO "EventLog" (
@@ -138,8 +140,8 @@ export async function POST(request: Request) {
         `,
         [
           zoneAgentId,
-          'MANUAL_OVERRIDE',
-          `Manual relay control: Relay ${relayNumber} turned ${command} (${newStatus})`,
+          isFaultOverride ? 'CRITICAL_OVERRIDE' : 'MANUAL_OVERRIDE',
+          description,
           true, // Manual actions are immediately resolved
         ]
       );
