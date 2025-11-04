@@ -59,6 +59,16 @@ interface ZoneData {
   history: SensorReading[];
 }
 
+interface TopologyNode {
+  id: string;
+  data: {
+    label: string;
+    feederNumber: number;
+    status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+    activeFaults: number;
+  };
+}
+
 export default function ZoneDetailPage() {
   const params = useParams();
   const { id } = params;
@@ -90,11 +100,11 @@ export default function ZoneDetailPage() {
         if (data.details.feeder_number === 99) {
           const topologyResponse = await fetch('/api/topology', { cache: 'no-store' });
           if (topologyResponse.ok) {
-            const topologyData = await topologyResponse.json();
+            const topologyData: { nodes: TopologyNode[] } = await topologyResponse.json();
             setAllZones({
               zones: topologyData.nodes
-                .filter((node: any) => node.data.feederNumber !== 99)
-                .map((node: any) => ({
+                .filter((node: TopologyNode) => node.data.feederNumber !== 99)
+                .map((node: TopologyNode) => ({
                   zone_agent_id: node.id,
                   location_description: node.data.label,
                   feeder_number: node.data.feederNumber,
