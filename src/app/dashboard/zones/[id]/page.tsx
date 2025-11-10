@@ -52,6 +52,10 @@ interface SensorReading {
   time: string;
   voltage?: number;
   current?: number;
+  power?: number;
+  power_factor?: number;
+  energy?: number;
+  frequency?: number;
 }
 
 interface ZoneData {
@@ -392,6 +396,78 @@ export default function ZoneDetailPage() {
                   <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 15]} />
                   <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                   <Line type="monotone" dataKey="current" stroke="#FBBF24" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Power Chart */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle>Power (W) over Time</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={formattedHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 2000]} />
+                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                  <Line type="monotone" dataKey="power" stroke="#10B981" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Power Factor Chart */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle>Power Factor over Time</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={formattedHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1]} />
+                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                  <Line type="monotone" dataKey="power_factor" stroke="#8B5CF6" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Energy Chart */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle>Energy (kWh) - Cumulative</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={formattedHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                  <YAxis stroke="#94A3B8" fontSize={12} />
+                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                  <Line type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Frequency Chart */}
+          <Card className="bg-slate-800 border-slate-700">
+            <CardHeader>
+              <CardTitle>Frequency (Hz) over Time</CardTitle>
+            </CardHeader>
+            <CardContent className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={formattedHistory}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                  <YAxis stroke="#94A3B8" fontSize={12} domain={[49, 51]} />
+                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                  <Line type="monotone" dataKey="frequency" stroke="#EC4899" strokeWidth={2} dot={false} />
                 </LineChart>
               </ResponsiveContainer>
             </CardContent>
