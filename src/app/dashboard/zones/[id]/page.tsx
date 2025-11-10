@@ -393,7 +393,7 @@ export default function ZoneDetailPage() {
                 <LineChart data={formattedHistory}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
                   <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 15]} />
+                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 6]} />
                   <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                   <Line type="monotone" dataKey="current" stroke="#FBBF24" strokeWidth={2} dot={false} />
                 </LineChart>
@@ -411,7 +411,7 @@ export default function ZoneDetailPage() {
                 <LineChart data={formattedHistory}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
                   <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 2000]} />
+                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1500]} />
                   <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                   <Line type="monotone" dataKey="power" stroke="#10B981" strokeWidth={2} dot={false} />
                 </LineChart>
