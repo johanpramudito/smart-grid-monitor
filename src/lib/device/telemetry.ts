@@ -10,6 +10,10 @@ type TelemetryInput = {
   status?: ZoneStatus;
   voltage?: number;
   current?: number;
+  power?: number;
+  pf?: number; // power factor
+  energy?: number; // accumulated energy in kWh
+  frequency?: number; // AC frequency in Hz
 };
 
 async function getOrCreateSensor(client: PoolClient, zoneId: string, type: SensorType) {
@@ -57,12 +61,53 @@ async function recordSensorValue(
   );
 }
 
+async function recordPowerMetrics(
+  client: PoolClient,
+  sensorId: string,
+  timestamp: Date,
+  power?: number,
+  powerFactor?: number,
+  energy?: number,
+  frequency?: number,
+) {
+  // Build dynamic SQL based on which values are provided
+  const fields: string[] = ['sensor_id', 'timestamp'];
+  const values: (string | number)[] = [sensorId, timestamp.toISOString()];
+
+  if (power !== undefined) {
+    fields.push('power');
+    values.push(power);
+  }
+  if (powerFactor !== undefined) {
+    fields.push('power_factor');
+    values.push(powerFactor);
+  }
+  if (energy !== undefined) {
+    fields.push('energy');
+    values.push(energy);
+  }
+  if (frequency !== undefined) {
+    fields.push('frequency');
+    values.push(frequency);
+  }
+
+  if (fields.length > 2) { // Only insert if we have data beyond sensor_id and timestamp
+    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
+    await client.query(
+      `INSERT INTO "SensorReading" (${fields.join(', ')})
+       VALUES (${placeholders})`,
+      values,
+    );
+  }
+}
+
 export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const zoneId = device.zone_agent_id;
 
+    // Record voltage and current (use existing logic for backward compatibility)
     if (typeof input.voltage === 'number') {
       const voltageSensorId = await getOrCreateSensor(client, zoneId, 'VOLTAGE');
       await recordSensorValue(client, voltageSensorId, input.timestamp, input.voltage, 'voltage');
@@ -71,6 +116,23 @@ export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput
     if (typeof input.current === 'number') {
       const currentSensorId = await getOrCreateSensor(client, zoneId, 'CURRENT');
       await recordSensorValue(client, currentSensorId, input.timestamp, input.current, 'current');
+    }
+
+    // Record power metrics (power, pf, energy, frequency) - use voltage sensor as the parent
+    const hasPowerMetrics = input.power !== undefined || input.pf !== undefined ||
+                           input.energy !== undefined || input.frequency !== undefined;
+
+    if (hasPowerMetrics) {
+      const voltageSensorId = await getOrCreateSensor(client, zoneId, 'VOLTAGE');
+      await recordPowerMetrics(
+        client,
+        voltageSensorId,
+        input.timestamp,
+        input.power,
+        input.pf,
+        input.energy,
+        input.frequency
+      );
     }
 
     if (input.status) {

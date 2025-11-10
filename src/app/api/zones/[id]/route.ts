@@ -63,7 +63,7 @@ export async function GET(
         [zoneId]
       ),
       client.query(`
-        SELECT r.timestamp, r.voltage, r.current
+        SELECT r.timestamp, r.voltage, r.current, r.power, r.power_factor, r.energy, r.frequency
         FROM "SensorReading" r
         JOIN "Sensor" s ON r.sensor_id = s.sensor_id
         WHERE s.zone_agent_id = $1
@@ -86,9 +86,17 @@ export async function GET(
     const sensorHistory = historyResult.rows;
 
     // The current schema stores voltage and current readings in separate rows.
-    // We need to process them into a format suitable for charting (e.g., { time, voltage, current }).
+    // We need to process them into a format suitable for charting (e.g., { time, voltage, current, power, power_factor, energy, frequency }).
     // This is a simplified approach; a more robust solution might involve more complex SQL pivoting.
-    type HistoryPoint = { time: string; voltage?: number; current?: number };
+    type HistoryPoint = {
+      time: string;
+      voltage?: number;
+      current?: number;
+      power?: number;
+      power_factor?: number;
+      energy?: number;
+      frequency?: number;
+    };
 
     const processedHistory = sensorHistory.reduce<Record<string, HistoryPoint>>((acc, reading) => {
       const time = new Date(reading.timestamp).toISOString();
@@ -98,6 +106,18 @@ export async function GET(
       }
       if (reading.current !== null && reading.current !== undefined) {
         existing.current = reading.current;
+      }
+      if (reading.power !== null && reading.power !== undefined) {
+        existing.power = reading.power;
+      }
+      if (reading.power_factor !== null && reading.power_factor !== undefined) {
+        existing.power_factor = reading.power_factor;
+      }
+      if (reading.energy !== null && reading.energy !== undefined) {
+        existing.energy = reading.energy;
+      }
+      if (reading.frequency !== null && reading.frequency !== undefined) {
+        existing.frequency = reading.frequency;
       }
       acc[time] = existing;
       return acc;

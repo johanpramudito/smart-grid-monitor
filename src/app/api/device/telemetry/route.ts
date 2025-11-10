@@ -7,12 +7,16 @@ const telemetrySchema = z
   .object({
     voltage: z.number().finite().optional(),
     current: z.number().finite().optional(),
+    power: z.number().finite().optional(),
+    pf: z.number().min(0).max(1).optional(), // Power factor: 0.0 to 1.0
+    energy: z.number().finite().nonnegative().optional(), // Accumulated energy in kWh
+    frequency: z.number().finite().positive().optional(), // AC frequency in Hz
     status: z.enum(['NORMAL', 'FAULT', 'ISOLATED', 'OFFLINE']).optional(),
     timestamp: z.string().datetime().optional(),
   })
   .refine(
-    (data) => data.voltage !== undefined || data.current !== undefined || data.status !== undefined,
-    { message: 'Provide at least one of voltage, current, or status.' },
+    (data) => data.voltage !== undefined || data.current !== undefined || data.power !== undefined || data.status !== undefined,
+    { message: 'Provide at least one of voltage, current, power, or status.' },
   );
 
 export async function POST(request: Request) {
