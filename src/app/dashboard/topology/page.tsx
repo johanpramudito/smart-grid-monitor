@@ -80,6 +80,9 @@ export default function TopologyPage() {
 
       let currentX = startX + 200;
 
+      // Track if any previous relay is open (to gray out downstream connections)
+      let anyPreviousRelayOpen = false;
+
       // 2. For each zone, create Sensor -> Relay pair
       mainZones.forEach((zone, index) => {
         const zoneId = zone.id;
@@ -104,20 +107,24 @@ export default function TopologyPage() {
         });
 
         // Connect previous node to sensor
+        // Gray out if any previous relay is OPEN (de-energized)
         const previousNodeId = index === 0 ? "pln" : `relay-${mainZones[index - 1].id}`;
+        const isEnergized = !anyPreviousRelayOpen;
+
         graphEdges.push({
           id: `edge-${previousNodeId}-${sensorId}`,
           source: previousNodeId,
           target: sensorId,
           type: "straight",
-          animated: !isFault,
+          animated: isEnergized && !isFault,
           style: {
-            stroke: isFault ? "#ef4444" : "#10b981",
-            strokeWidth: isFault ? 5 : 3,
+            stroke: !isEnergized ? "#64748b" : (isFault ? "#ef4444" : "#10b981"),
+            strokeWidth: !isEnergized ? 2 : (isFault ? 5 : 3),
+            strokeDasharray: !isEnergized ? "8 4" : "0",
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: isFault ? "#ef4444" : "#10b981",
+            color: !isEnergized ? "#64748b" : (isFault ? "#ef4444" : "#10b981"),
           },
         });
 
@@ -139,21 +146,30 @@ export default function TopologyPage() {
         });
 
         // Connect sensor to relay
+        // If previous relay was open OR current zone offline, gray this out too
+        const sensorToRelayEnergized = isEnergized && zone.data.status !== "OFFLINE";
+
         graphEdges.push({
           id: `edge-${sensorId}-${relayId}`,
           source: sensorId,
           target: relayId,
           type: "straight",
-          animated: !isFault,
+          animated: sensorToRelayEnergized && !isFault,
           style: {
-            stroke: isFault ? "#ef4444" : "#10b981",
-            strokeWidth: isFault ? 5 : 3,
+            stroke: !sensorToRelayEnergized ? "#64748b" : (isFault ? "#ef4444" : "#10b981"),
+            strokeWidth: !sensorToRelayEnergized ? 2 : (isFault ? 5 : 3),
+            strokeDasharray: !sensorToRelayEnergized ? "8 4" : "0",
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: isFault ? "#ef4444" : "#10b981",
+            color: !sensorToRelayEnergized ? "#64748b" : (isFault ? "#ef4444" : "#10b981"),
           },
         });
+
+        // Update tracking: if this relay is OPEN (fault), all downstream should be gray
+        if (isFault || zone.data.status === "ISOLATED" || zone.data.status === "OFFLINE") {
+          anyPreviousRelayOpen = true;
+        }
 
         currentX += spacing;
       });

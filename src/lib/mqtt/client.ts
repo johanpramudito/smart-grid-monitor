@@ -60,14 +60,65 @@ export type RelayCommand = 'CLOSED' | 'OPEN' | 'ON' | 'OFF';
 
 /**
  * MQTT topic structure for relay control
- * Format: smart-grid/zone/{zone_id}/relay/{relay_number}/command
+ * Format: /device/{deviceKeyId}/control
+ * This matches the ESP32 subscription pattern: /device/+/control
  */
 export interface RelayCommandPayload {
-  zoneId: string;
+  zoneId: string; // UUID from database
   relayNumber: number;
   command: RelayCommand;
   timestamp: string;
   source: 'MANUAL' | 'FLISR';
+}
+
+/**
+ * Map zone UUID to device key ID (must match STM32 configuration)
+ * TODO: This should be fetched from database DeviceAgent table
+ */
+const ZONE_TO_DEVICE_MAP: Record<string, string> = {
+  // Add your zone_agent_id to device_key_id mappings here
+  // These should match the kZones[] array in STM32 code
+  // Example:
+  // 'uuid-of-zone-1': 'ac1b15fc',
+  // 'uuid-of-zone-2': '70f460bd',
+  // 'uuid-of-zone-3': 'df8f6261',
+  // 'uuid-of-tie': '68a3fd30',
+};
+
+/**
+ * Fetch device key ID from database based on zone ID
+ */
+async function getDeviceKeyId(zoneId: string): Promise<string | null> {
+  try {
+    const { pool } = await import('@/lib/database/connection');
+    const client = await pool.connect();
+
+    try {
+      const result = await client.query(
+        `SELECT da.api_key_id
+         FROM "DeviceAgent" da
+         WHERE da.zone_agent_id = $1
+         LIMIT 1`,
+        [zoneId]
+      );
+
+      if (result.rows.length > 0) {
+        // Extract the device key from api_key_id (format: sgm_<deviceKey>_<hash>)
+        const apiKeyId = result.rows[0].api_key_id as string;
+        const match = apiKeyId.match(/^sgm_([a-f0-9]{8})_/);
+        if (match) {
+          return match[1]; // Return just the device key (e.g., 'ac1b15fc')
+        }
+      }
+
+      return null;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('[MQTT] Failed to fetch device key ID:', error);
+    return null;
+  }
 }
 
 /**
@@ -81,14 +132,21 @@ export async function publishRelayCommand(
 ): Promise<void> {
   const client = getMqttClient();
 
-  // Construct the topic
-  const topic = `smart-grid/zone/${payload.zoneId}/relay/${payload.relayNumber}/command`;
+  // Get device key ID from zone ID
+  const deviceKeyId = await getDeviceKeyId(payload.zoneId);
 
-  // Create the message
+  if (!deviceKeyId) {
+    throw new Error(`No device found for zone ${payload.zoneId}`);
+  }
+
+  // Construct the topic in format: /device/{deviceKeyId}/control
+  const topic = `/device/${deviceKeyId}/control`;
+
+  // Create the message in format expected by STM32:
+  // {"relay":1,"state":"CLOSED"}
   const message = JSON.stringify({
-    command: payload.command,
-    timestamp: payload.timestamp,
-    source: payload.source,
+    relay: payload.relayNumber,
+    state: payload.command, // CLOSED, OPEN, ON, OFF
   });
 
   return new Promise((resolve, reject) => {
@@ -97,7 +155,8 @@ export async function publishRelayCommand(
         console.error(`[MQTT] Failed to publish to ${topic}:`, error);
         reject(error);
       } else {
-        console.log(`[MQTT] Published to ${topic}:`, message);
+        console.log(`[MQTT] Published command to ${topic}:`, message);
+        console.log(`[MQTT] Device: ${deviceKeyId}, Relay: ${payload.relayNumber}, State: ${payload.command}`);
         resolve();
       }
     });
