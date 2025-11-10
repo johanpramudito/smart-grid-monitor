@@ -8,14 +8,21 @@ import ReactFlow, {
   useEdgesState,
   Node,
   Edge,
+  MarkerType,
 } from "reactflow";
 import "reactflow/dist/style.css";
 
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal } from "lucide-react";
-
-type ZoneStatus = "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+import { Terminal, ZapIcon, AlertTriangle } from "lucide-react";
+import {
+  nodeTypes,
+  type ZoneStatus,
+  type PowerSupplyNodeData,
+  type SensorNodeData,
+  type RelayNodeData,
+  type TieRelayNodeData,
+} from "@/components/topology/CustomNodes";
 
 type ZoneNodeData = {
   label: string;
@@ -33,21 +40,8 @@ type ZoneNodeData = {
 type ZoneNode = Node<ZoneNodeData>;
 type FlisrResponsePayload = Record<string, unknown>;
 
-const DEFAULT_NODE_DATA: ZoneNodeData = {
-  label: "",
-  status: "NORMAL",
-  feederNumber: null,
-  isTie: false,
-  activeFaults: 0,
-  faultEventId: null,
-  faultDescription: null,
-  lastFaultAt: null,
-  deviceId: null,
-  deviceLastSeen: null,
-};
-
 export default function TopologyPage() {
-  const [nodes, setNodes, onNodesChange] = useNodesState<ZoneNodeData>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,266 +55,176 @@ export default function TopologyPage() {
     (data: { nodes: ZoneNode[]; tieClosed?: boolean }) => {
       const mainZones = data.nodes
         .filter((node) => !node.data.isTie)
-        .sort(
-          (a, b) => (a.data.feederNumber ?? 0) - (b.data.feederNumber ?? 0)
-        );
+        .sort((a, b) => (a.data.feederNumber ?? 0) - (b.data.feederNumber ?? 0));
       const tieZone = data.nodes.find((node) => node.data.isTie) ?? null;
 
-      const tieIsClosed =
-        data.tieClosed ?? mainZones.some((zone) => zone.data.status === "FAULT");
+      const tieIsClosed = data.tieClosed ?? mainZones.some((zone) => zone.data.status === "FAULT");
 
-      const baseTopY = 80;
-      const baseX = 220;
-      const spacing = 240;
+      // Layout configuration
+      const startX = 120;
+      const startY = 250;
+      const spacing = 280;
 
-      const graphNodes: ZoneNode[] = [
-        {
-          id: "pln",
-          position: { x: 60, y: baseTopY },
-          data: { ...DEFAULT_NODE_DATA, label: "PLN" },
-          draggable: false,
-          selectable: false,
-          style: {
-            width: 90,
-            height: 90,
-            borderRadius: 9999,
-            background: "#0f172a",
-            border: "4px solid #1e293b",
-            color: "#f8fafc",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 700,
-            fontSize: 16,
-          },
-        },
-        {
-          id: "feeder1-label",
-          position: { x: baseX, y: baseTopY - 60 },
-          data: { ...DEFAULT_NODE_DATA, label: "Feeder 1" },
-          draggable: false,
-          selectable: false,
-          style: {
-            background: "transparent",
-            border: "none",
-            color: "#94a3b8",
-            fontWeight: 600,
-            pointerEvents: "none",
-          },
-        },
-        {
-          id: "feeder2-label",
-          position: { x: baseX, y: baseTopY + 140 },
-          data: { ...DEFAULT_NODE_DATA, label: "Feeder 2" },
-          draggable: false,
-          selectable: false,
-          style: {
-            background: "transparent",
-            border: "none",
-            color: "#94a3b8",
-            fontWeight: 600,
-            pointerEvents: "none",
-          },
-        },
-        {
-          id: "feeder2-start",
-          position: { x: 60, y: baseTopY + 150 },
-          data: { ...DEFAULT_NODE_DATA, label: "" },
-          draggable: false,
-          selectable: false,
-          style: {
-            width: 1,
-            height: 1,
-            border: "none",
-            background: "transparent",
-            pointerEvents: "none",
-          },
-        },
-      ];
+      const graphNodes: Node[] = [];
+      const graphEdges: Edge[] = [];
 
-      const mainZoneNodes = mainZones.map((zone, index) => {
-        const x = baseX + index * spacing;
+      // 1. PLN Power Source (leftmost)
+      graphNodes.push({
+        id: "pln",
+        type: "powerSupply",
+        position: { x: startX, y: startY },
+        data: { label: "PLN" } as PowerSupplyNodeData,
+        draggable: false,
+        selectable: false,
+      });
+
+      let currentX = startX + 200;
+
+      // 2. For each zone, create Sensor -> Relay pair
+      mainZones.forEach((zone, index) => {
+        const zoneId = zone.id;
+        const sensorId = `sensor-${zoneId}`;
+        const relayId = `relay-${zoneId}`;
+        const feederNum = zone.data.feederNumber ?? index + 1;
         const isFault = zone.data.status === "FAULT";
-        const label =
-          zone.data.label || `Zone ${zone.data.feederNumber ?? index + 1}`;
 
-        return {
-          id: zone.id,
-          position: { x, y: baseTopY },
+        // Sensor Node (V&A Meter)
+        graphNodes.push({
+          id: sensorId,
+          type: "sensor",
+          position: { x: currentX, y: startY },
           data: {
-            ...DEFAULT_NODE_DATA,
-            ...zone.data,
-            label: `V&A\n${label}`,
-          },
+            label: zone.data.label || `Zone ${feederNum}`,
+            status: zone.data.status,
+            feederNumber: feederNum,
+            activeFaults: zone.data.activeFaults,
+          } as SensorNodeData,
           draggable: false,
           selectable: true,
-          style: {
-            width: 120,
-            height: 120,
-            borderRadius: "9999px",
-            background: isFault ? "#ef4444" : "#1e293b",
-            border: `4px solid ${isFault ? "#ef4444" : "#1e293b"}`,
-            color: "#f8fafc",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            textAlign: "center",
-            whiteSpace: "pre-line",
-            fontWeight: 700,
-            fontSize: 16,
-          },
-        } satisfies ZoneNode;
-      });
+        });
 
-      graphNodes.push(...mainZoneNodes);
-
-      const lastZoneX =
-        mainZoneNodes.length > 0
-          ? mainZoneNodes[mainZoneNodes.length - 1].position.x ?? baseX
-          : baseX;
-
-      const feeder2Mid: ZoneNode = {
-        id: "feeder2-mid",
-        position: { x: lastZoneX, y: baseTopY + 150 },
-        data: { ...DEFAULT_NODE_DATA, label: "" },
-        draggable: false,
-        selectable: false,
-        style: {
-          width: 1,
-          height: 1,
-          border: "none",
-          background: "transparent",
-          pointerEvents: "none",
-        },
-      };
-
-      const tieNodeId = tieZone?.id ?? "tie";
-      const tieNodeX = lastZoneX + spacing;
-      const tieLabel = tieIsClosed ? "Tie Relay\nClosed" : "Tie Relay\nOpen";
-
-      const tieNode: ZoneNode = {
-        id: tieNodeId,
-        position: { x: tieNodeX, y: baseTopY + 60 },
-        data: {
-          ...DEFAULT_NODE_DATA,
-          ...tieZone?.data,
-          label: tieLabel,
-          isTie: true,
-        },
-        draggable: false,
-        selectable: false,
-        style: {
-          width: 120,
-          height: 120,
-          borderRadius: "9999px",
-          background: tieIsClosed ? "#22c55e" : "#0f172a",
-          border: `4px solid ${tieIsClosed ? "#22c55e" : "#475569"}`,
-          color: "#f8fafc",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          whiteSpace: "pre-line",
-          fontWeight: 700,
-          fontSize: 16,
-        },
-      };
-
-      const feeder2End: ZoneNode = {
-        id: "feeder2-end",
-        position: { x: tieNodeX, y: baseTopY + 150 },
-        data: { ...DEFAULT_NODE_DATA, label: "" },
-        draggable: false,
-        selectable: false,
-        style: {
-          width: 1,
-          height: 1,
-          border: "none",
-          background: "transparent",
-          pointerEvents: "none",
-        },
-      };
-
-      graphNodes.push(feeder2Mid, tieNode, feeder2End);
-
-      const graphEdges: Edge[] = [];
-      const baseEdgeStyle = {
-        stroke: "#334155",
-        strokeWidth: 3,
-      };
-
-      let previousNodeId = "pln";
-      mainZones.forEach((zone) => {
-        const zoneId = zone.id;
-        const isFault = zone.data.status === "FAULT";
+        // Connect previous node to sensor
+        const previousNodeId = index === 0 ? "pln" : `relay-${mainZones[index - 1].id}`;
         graphEdges.push({
-          id: `edge-${previousNodeId}-${zoneId}`,
+          id: `edge-${previousNodeId}-${sensorId}`,
           source: previousNodeId,
-          target: zoneId,
-          type: "smoothstep",
-          animated: zone.data.status !== "OFFLINE",
+          target: sensorId,
+          type: "straight",
+          animated: !isFault,
           style: {
-            ...baseEdgeStyle,
-            stroke: isFault ? "#ef4444" : "#334155",
+            stroke: isFault ? "#ef4444" : "#10b981",
             strokeWidth: isFault ? 5 : 3,
           },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isFault ? "#ef4444" : "#10b981",
+          },
         });
-        previousNodeId = zoneId;
+
+        currentX += 120;
+
+        // Relay Node (Circuit Breaker)
+        graphNodes.push({
+          id: relayId,
+          type: "relay",
+          position: { x: currentX, y: startY },
+          data: {
+            label: `CB${feederNum}`,
+            status: zone.data.status,
+            feederNumber: feederNum,
+            state: isFault ? "OPEN" : "CLOSED",
+          } as RelayNodeData,
+          draggable: false,
+          selectable: false,
+        });
+
+        // Connect sensor to relay
+        graphEdges.push({
+          id: `edge-${sensorId}-${relayId}`,
+          source: sensorId,
+          target: relayId,
+          type: "straight",
+          animated: !isFault,
+          style: {
+            stroke: isFault ? "#ef4444" : "#10b981",
+            strokeWidth: isFault ? 5 : 3,
+          },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isFault ? "#ef4444" : "#10b981",
+          },
+        });
+
+        currentX += spacing;
       });
 
-      graphEdges.push(
-        {
-          id: "edge-pln-feeder2",
-          source: "pln",
-          target: "feeder2-start",
-          type: "smoothstep",
-          style: baseEdgeStyle,
+      // 3. Tie Relay (at the end, vertically offset)
+      const tieNodeId = tieZone?.id ?? "tie";
+      const lastRelayId = mainZones.length > 0 ? `relay-${mainZones[mainZones.length - 1].id}` : "pln";
+
+      graphNodes.push({
+        id: tieNodeId,
+        type: "tieRelay",
+        position: { x: currentX - 100, y: startY + 180 },
+        data: {
+          label: "Tie Relay",
+          status: tieIsClosed ? "FAULT" : "NORMAL",
+          state: tieIsClosed ? "CLOSED" : "OPEN",
+          isTie: true,
+        } as TieRelayNodeData,
+        draggable: false,
+        selectable: true,
+      });
+
+      // Connect last relay to tie relay
+      graphEdges.push({
+        id: `edge-${lastRelayId}-${tieNodeId}`,
+        source: lastRelayId,
+        target: tieNodeId,
+        type: "straight",
+        animated: tieIsClosed,
+        style: {
+          stroke: tieIsClosed ? "#22c55e" : "#64748b",
+          strokeWidth: tieIsClosed ? 5 : 3,
+          strokeDasharray: tieIsClosed ? "0" : "8 4",
         },
-        {
-          id: "edge-feeder2-start-mid",
-          source: "feeder2-start",
-          target: "feeder2-mid",
-          type: "smoothstep",
-          style: baseEdgeStyle,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: tieIsClosed ? "#22c55e" : "#64748b",
         },
-        {
-          id: "edge-feeder2-mid-end",
-          source: "feeder2-mid",
-          target: "feeder2-end",
-          type: "smoothstep",
-          style: baseEdgeStyle,
-        }
-      );
+      });
 
-      if (mainZones.length > 0) {
-        const lastZoneId = mainZones[mainZones.length - 1].id;
-        const tieEdgeStyle = tieIsClosed
-          ? { stroke: "#22c55e", strokeWidth: 4 }
-          : { stroke: "#64748b", strokeWidth: 3, strokeDasharray: "6 4" };
+      // Feeder 2 connection (from tie relay)
+      const feeder2EndX = startX;
+      const feeder2EndY = startY + 360;
 
-        graphEdges.push(
-          {
-            id: "edge-zone-tie",
-            source: lastZoneId,
-            target: tieNodeId,
-            type: "smoothstep",
-            animated: tieIsClosed,
-            style: tieEdgeStyle,
-          },
-          {
-            id: "edge-tie-feeder2",
-            source: tieNodeId,
-            target: "feeder2-end",
-            type: "smoothstep",
-            animated: tieIsClosed,
-            style: tieEdgeStyle,
-          }
-        );
-      }
+      graphNodes.push({
+        id: "feeder2-end",
+        type: "powerSupply",
+        position: { x: feeder2EndX, y: feeder2EndY },
+        data: { label: "Feeder 2" } as PowerSupplyNodeData,
+        draggable: false,
+        selectable: false,
+      });
 
-      const firstFaultNode = mainZones.find(
-        (zone) => zone.data.faultEventId !== null
-      );
+      graphEdges.push({
+        id: `edge-${tieNodeId}-feeder2`,
+        source: tieNodeId,
+        target: "feeder2-end",
+        type: "straight",
+        animated: tieIsClosed,
+        style: {
+          stroke: tieIsClosed ? "#22c55e" : "#64748b",
+          strokeWidth: tieIsClosed ? 5 : 3,
+          strokeDasharray: tieIsClosed ? "0" : "8 4",
+        },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          color: tieIsClosed ? "#22c55e" : "#64748b",
+        },
+      });
+
+      const firstFaultNode = mainZones.find((zone) => zone.data.faultEventId !== null);
 
       return {
         nodes: graphNodes,
@@ -355,12 +259,9 @@ export default function TopologyPage() {
 
   useEffect(() => {
     fetchTopology();
-
-    // Auto-refresh topology every 5 seconds to show live updates from MQTT devices
     const interval = setInterval(() => {
       fetchTopology();
     }, 5000);
-
     return () => clearInterval(interval);
   }, [fetchTopology]);
 
@@ -384,14 +285,23 @@ export default function TopologyPage() {
       setFlisrResult(result);
       fetchTopology();
     } catch (error) {
-      setFlisrResult({ message: `Error: ${error instanceof Error ? error.message : "Unknown error"}` });
+      setFlisrResult({
+        message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      });
     } finally {
       setIsFlisrLoading(false);
     }
   };
 
   if (isLoading) {
-    return <div>Loading Topology...</div>;
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-lg text-slate-300">Loading Grid Topology...</p>
+        </div>
+      </div>
+    );
   }
 
   if (error) {
@@ -400,24 +310,70 @@ export default function TopologyPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      {/* Header */}
+      <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-3xl font-bold">Live Grid Topology</h2>
-          <p className="text-slate-400">
-            Dynamic visualization of the smart grid network with fault overlays.
+          <h2 className="text-3xl font-bold flex items-center gap-2">
+            <ZapIcon className="w-8 h-8 text-yellow-400" />
+            Live Grid Topology (IEC 60617)
+          </h2>
+          <p className="text-slate-400 mt-1">
+            Real-time visualization using IEC standard electrical symbols
           </p>
-          <p className="text-slate-400 text-sm mt-1">
-            Tie Relay:{" "}
-            <span className={tieClosed ? "text-green-400 font-semibold" : "text-slate-300"}>
-              {tieClosed ? "Closed (fault detected)" : "Open"}
-            </span>
-          </p>
+          <div className="flex gap-4 mt-2 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-green-500"></div>
+              <span className="text-slate-300">Normal</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-red-500"></div>
+              <span className="text-slate-300">Fault</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded-full bg-slate-500"></div>
+              <span className="text-slate-300">Offline</span>
+            </div>
+          </div>
         </div>
         <Button onClick={handleTriggerFlisr} disabled={isFlisrLoading || faultEventId === null}>
           {isFlisrLoading ? "Processing..." : "Trigger FLISR"}
         </Button>
       </div>
 
+      {/* Status Banner */}
+      <div className={`p-4 rounded-lg border-2 ${
+        tieClosed
+          ? 'bg-yellow-950 border-yellow-600'
+          : 'bg-green-950 border-green-600'
+      }`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            {tieClosed ? (
+              <>
+                <AlertTriangle className="w-6 h-6 text-yellow-400" />
+                <div>
+                  <p className="font-bold text-yellow-200">FLISR Active - Fault Detected</p>
+                  <p className="text-sm text-yellow-300">
+                    Tie relay is CLOSED to restore power to healthy zones
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <ZapIcon className="w-6 h-6 text-green-400" />
+                <div>
+                  <p className="font-bold text-green-200">Normal Operation</p>
+                  <p className="text-sm text-green-300">
+                    All zones operating normally - Tie relay OPEN
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* FLISR Result */}
       {flisrResult && (
         <Alert>
           <Terminal className="h-4 w-4" />
@@ -438,17 +394,41 @@ export default function TopologyPage() {
         </Alert>
       )}
 
-      <div className="w-full h-[60vh] border rounded-lg border-slate-700">
+      {/* Topology Canvas */}
+      <div className="w-full h-[70vh] border-2 rounded-lg border-slate-700 bg-slate-900">
         <ReactFlow
           nodes={nodes}
           edges={edges}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
           fitView
+          minZoom={0.5}
+          maxZoom={1.5}
         >
           <Controls />
-          <Background color="#aaa" gap={16} />
+          <Background color="#334155" gap={20} size={1} />
         </ReactFlow>
+      </div>
+
+      {/* Legend */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-800 rounded-lg border border-slate-700">
+        <div className="flex flex-col items-center">
+          <div className="text-sm font-semibold text-slate-300 mb-1">Power Source</div>
+          <div className="text-xs text-slate-400">AC Generator (~)</div>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="text-sm font-semibold text-slate-300 mb-1">V&A Meter</div>
+          <div className="text-xs text-slate-400">PZEM Sensor</div>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="text-sm font-semibold text-slate-300 mb-1">Circuit Breaker</div>
+          <div className="text-xs text-slate-400">Relay Control</div>
+        </div>
+        <div className="flex flex-col items-center">
+          <div className="text-sm font-semibold text-slate-300 mb-1">Tie Switch</div>
+          <div className="text-xs text-slate-400">Normally Open</div>
+        </div>
       </div>
     </div>
   );
