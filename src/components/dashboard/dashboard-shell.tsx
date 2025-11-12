@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, ReactNode, useEffect } from "react";
-import { Bell, Gauge, History, Network, LogOut, Menu, X } from "lucide-react";
+import { Gauge, History, Network, LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NotificationCenter } from "./notifications";
 
 type DashboardShellProps = {
   children: ReactNode;
@@ -129,13 +130,7 @@ export function DashboardShell({ children, userEmail }: DashboardShellProps) {
             <span className="text-sm text-slate-400 hidden sm:block truncate">
               Logged in as {userEmail}
             </span>
-            <button className="relative p-2 rounded-full hover:bg-slate-700 flex-shrink-0">
-              <Bell className="w-6 h-6 text-slate-300" />
-              <span className="absolute top-2 right-2 flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-              </span>
-            </button>
+            <NotificationCenter />
           </div>
         </header>
         <main className="flex-1 p-4 sm:p-6 overflow-y-auto">{children}</main>
