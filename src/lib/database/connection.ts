@@ -12,6 +12,9 @@ if (!connectionString) {
 
 export const pool = new Pool({
   connectionString,
+  max: 20, // Increase from default 10 to handle concurrent telemetry
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 10000, // Fail fast if pool is exhausted
 });
 
 // Helper function for manual diagnostics (invoked explicitly when needed).

@@ -23,6 +23,8 @@ interface Zone {
     activeFaults: number;
     lastFaultAt: string | null;
     deviceLastSeen: string | null;
+    feederNumber?: number; // Add feeder number for sorting
+    isTie?: boolean; // Add tie relay flag for sorting
   };
   // We will fetch voltage and current separately or assume they are part of another API call
   // For now, we will display status and name.
@@ -58,8 +60,22 @@ export default function DashboardPage() {
         const topologyData = await topologyResponse.json();
 
         setStats(statsData);
+
         // The topology API returns nodes, which are our zones
-        setZones(topologyData.nodes);
+        // Sort zones by feeder number to maintain consistent order:
+        // Zone 1, Zone 2, Zone 3, ..., Tie Relay
+        const sortedZones = [...topologyData.nodes].sort((a: Zone, b: Zone) => {
+          // Tie relay (feeder 99 or isTie flag) should always be last
+          if (a.data.isTie && !b.data.isTie) return 1;
+          if (!a.data.isTie && b.data.isTie) return -1;
+
+          // Sort regular zones by feeder number (1, 2, 3, ...)
+          const feederA = a.data.feederNumber ?? 999;
+          const feederB = b.data.feederNumber ?? 999;
+          return feederA - feederB;
+        });
+
+        setZones(sortedZones);
 
       } catch (err) {
         setError(err instanceof Error ? err.message : "An unknown error occurred");
@@ -88,16 +104,16 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div>
-        <h2 className="text-3xl font-bold">Energy Monitor</h2>
-        <p className="text-slate-400">
+        <h2 className="text-2xl sm:text-3xl font-bold">Energy Monitor</h2>
+        <p className="text-sm sm:text-base text-slate-400">
           Real-time monitoring of smart grid zones
         </p>
       </div>
 
       {/* Zone status cards will be simplified as detailed V/A data is on the zone page */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-white">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-white">
         {zones.map((zone) => (
           <Link
             href={`/dashboard/zones/${zone.id}`}
@@ -112,50 +128,50 @@ export default function DashboardPage() {
               }`}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-md font-medium flex items-center text-white">
+                <CardTitle className="text-sm sm:text-md font-medium flex items-center text-white">
                   {zone.data.status === "NORMAL" ? (
-                    <Zap className="w-5 h-5 mr-2 text-green-400" />
+                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-green-400 flex-shrink-0" />
                   ) : (
-                    <AlertTriangle className="w-5 h-5 mr-2 text-red-400" />
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-400 flex-shrink-0" />
                   )}
-                  {zone.data.label}
+                  <span className="break-words">{zone.data.label}</span>
                 </CardTitle>
                 <Badge
                   variant={zone.data.status === "FAULT" ? "destructive" : "default"}
-                  className={
+                  className={`text-xs flex-shrink-0 ${
                     zone.data.status === "NORMAL"
                       ? "bg-green-500/20 text-green-300 border-green-500/30"
                       : ""
-                  }
+                  }`}
                 >
                   {zone.data.status}
                 </Badge>
               </CardHeader>
               <CardContent>
-                 <div className="text-sm text-slate-400 pt-4 space-y-2">
-                    <p>Click to view detailed voltage, current, and history.</p>
+                 <div className="text-xs sm:text-sm text-slate-400 pt-3 sm:pt-4 space-y-2">
+                    <p className="hidden sm:block">Click to view detailed voltage, current, and history.</p>
+                    <p className="sm:hidden">Tap for details</p>
                     {zone.data.activeFaults > 0 ? (
                       <span className="flex items-center text-red-400">
-                        <AlertTriangle className="w-4 h-4 mr-2" />
-                        {zone.data.activeFaults} active fault
-                        {zone.data.activeFaults > 1 ? "s" : ""}
+                        <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm">{zone.data.activeFaults} active fault{zone.data.activeFaults > 1 ? "s" : ""}</span>
                       </span>
                     ) : (
                       <span className="flex items-center text-slate-500">
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        No active faults
+                        <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm">No active faults</span>
                       </span>
                     )}
                     {zone.data.lastFaultAt && (
                       <span className="flex items-center text-slate-500">
-                        <Clock3 className="w-4 h-4 mr-2" />
-                        Last fault: {new Date(zone.data.lastFaultAt).toLocaleString()}
+                        <Clock3 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm">Last fault: {new Date(zone.data.lastFaultAt).toLocaleString()}</span>
                       </span>
                     )}
                     {zone.data.deviceLastSeen && (
                       <span className="flex items-center text-slate-500">
-                        <Loader className="w-4 h-4 mr-2" />
-                        Device: {new Date(zone.data.deviceLastSeen).toLocaleTimeString()}
+                        <Loader className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                        <span className="text-xs sm:text-sm">Device: {new Date(zone.data.deviceLastSeen).toLocaleTimeString()}</span>
                       </span>
                     )}
                  </div>
@@ -166,37 +182,37 @@ export default function DashboardPage() {
       </div>
 
       <div className="text-white">
-        <h3 className="text-2xl font-bold flex items-center mb-4">
-          <SlidersHorizontal className="w-6 h-6 mr-3" /> System Overview
+        <h3 className="text-xl sm:text-2xl font-bold flex items-center mb-3 sm:mb-4">
+          <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" /> System Overview
         </h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-slate-800 border-slate-700 p-4 flex flex-col items-center justify-center text-center">
-            <CheckCircle className="w-8 h-8 text-green-500 mb-2" />
-            <p className="text-3xl font-bold text-white">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+          <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
+            <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 mb-1 sm:mb-2" />
+            <p className="text-2xl sm:text-3xl font-bold text-white">
               {stats?.totalZones ?? 'N/A'}
             </p>
-            <p className="text-xs text-slate-400 uppercase tracking-wider">
+            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
               Total Zones
             </p>
           </Card>
-          <Card className="bg-slate-800 border-slate-700 p-4 flex flex-col items-center justify-center text-center">
-            <AlertTriangle className="w-8 h-8 text-red-500 mb-2" />
-            <p className="text-3xl font-bold text-white">{stats?.activeFaults ?? 'N/A'}</p>
-            <p className="text-xs text-slate-400 uppercase tracking-wider">
+          <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
+            <AlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 mb-1 sm:mb-2" />
+            <p className="text-2xl sm:text-3xl font-bold text-white">{stats?.activeFaults ?? 'N/A'}</p>
+            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
               Active Faults
             </p>
           </Card>
-          <Card className="bg-slate-800 border-slate-700 p-4 flex flex-col items-center justify-center text-center">
-            <Waves className="w-8 h-8 text-sky-500 mb-2" />
-            <p className="text-xl font-bold text-white">{stats?.systemStatus ?? 'N/A'}</p>
-            <p className="text-xs text-slate-400 uppercase tracking-wider">
+          <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
+            <Waves className="w-6 h-6 sm:w-8 sm:h-8 text-sky-500 mb-1 sm:mb-2" />
+            <p className="text-base sm:text-xl font-bold text-white break-words">{stats?.systemStatus ?? 'N/A'}</p>
+            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
               System Status
             </p>
           </Card>
-          <Card className="bg-slate-800 border-slate-700 p-4 flex flex-col items-center justify-center text-center">
-            <Zap className="w-8 h-8 text-yellow-500 mb-2" />
-            <p className="text-xl font-bold text-white">Real-Time</p>
-            <p className="text-xs text-slate-400 uppercase tracking-wider">
+          <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
+            <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 mb-1 sm:mb-2" />
+            <p className="text-base sm:text-xl font-bold text-white whitespace-nowrap">Real-Time</p>
+            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
               Monitoring
             </p>
           </Card>

@@ -83,6 +83,25 @@ export async function findDeviceByApiKey(apiKey: string): Promise<DeviceAgent | 
   }
 }
 
+export async function findDeviceByZoneId(zoneAgentId: string): Promise<DeviceAgent | null> {
+  const client = await pool.connect();
+  try {
+    const result = await client.query<DeviceAgent>(
+      `
+        SELECT device_id, zone_agent_id, name, api_key_id, api_key_hash, firmware_version, last_seen, created_at, updated_at
+        FROM "DeviceAgent"
+        WHERE zone_agent_id = $1
+        LIMIT 1
+      `,
+      [zoneAgentId],
+    );
+
+    return result.rows[0] || null;
+  } finally {
+    client.release();
+  }
+}
+
 export async function touchDevice(deviceId: string) {
   const client = await pool.connect();
   try {

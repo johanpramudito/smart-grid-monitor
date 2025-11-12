@@ -216,12 +216,12 @@ export default function ZoneDetailPage() {
   const faultedZones = allZones?.zones.filter(z => z.status === 'FAULT') ?? [];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div>
-        <h2 className="text-3xl font-bold">
+        <h2 className="text-2xl sm:text-3xl font-bold break-words">
           {isTieRelay ? "⚡ " : ""}{details.location_description} Details
         </h2>
-        <p className="text-slate-400">
+        <p className="text-sm sm:text-base text-slate-400">
           {isTieRelay
             ? "FLISR (Fault Location, Isolation, and Service Restoration) Control System"
             : `Real-time monitoring and control for Zone ID: ${details.zone_agent_id}`}
@@ -238,32 +238,32 @@ export default function ZoneDetailPage() {
               : 'bg-blue-950 border-blue-500'
         }`}>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
+            <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <span className="flex items-center">
                 {isManualMode ? (
                   <>
-                    <AlertTriangle className="w-6 h-6 mr-3 text-yellow-400" />
-                    Manual Override Active
+                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-yellow-400 flex-shrink-0" />
+                    <span className="text-base sm:text-lg">Manual Override Active</span>
                   </>
                 ) : anyZoneFaulted ? (
                   <>
-                    <AlertTriangle className="w-6 h-6 mr-3 text-red-400" />
-                    FLISR Activated - Fault Detected
+                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-red-400 flex-shrink-0" />
+                    <span className="text-base sm:text-lg">FLISR Activated - Fault Detected</span>
                   </>
                 ) : (
                   <>
-                    <Power className="w-6 h-6 mr-3 text-blue-400" />
-                    FLISR Automatic Mode - Normal Operation
+                    <Power className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-blue-400 flex-shrink-0" />
+                    <span className="text-base sm:text-lg">FLISR Automatic Mode - Normal Operation</span>
                   </>
                 )}
               </span>
-              <Badge className={
+              <Badge className={`flex-shrink-0 ${
                 isManualMode
                   ? 'bg-yellow-500 text-yellow-950'
                   : anyZoneFaulted
                     ? 'bg-red-500 text-white'
                     : 'bg-blue-500 text-white'
-              }>
+              }`}>
                 {isManualMode ? 'MANUAL' : anyZoneFaulted ? 'FAULT' : 'NORMAL'}
               </Badge>
             </CardTitle>
@@ -368,17 +368,17 @@ export default function ZoneDetailPage() {
         </Card>
       )}
 
-      <div className={`grid grid-cols-1 ${isTieRelay ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-6`}>
+      <div className={`grid grid-cols-1 ${isTieRelay ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
         {/* Charts - Only show for regular feeders, not for tie relay */}
         {!isTieRelay && (
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Regular Feeders: Show all electrical parameters */}
             <>
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
-                  <CardTitle>Voltage (V) over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">Voltage (V) over Time</CardTitle>
                 </CardHeader>
-                <CardContent className="h-64">
+                <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
@@ -392,9 +392,9 @@ export default function ZoneDetailPage() {
               </Card>
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
-                  <CardTitle>Current (A) over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">Current (A) over Time</CardTitle>
                 </CardHeader>
-                <CardContent className="h-64">
+                <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
@@ -410,9 +410,9 @@ export default function ZoneDetailPage() {
               {/* Power Chart */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
-                  <CardTitle>Power (W) over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">Power (W) over Time</CardTitle>
                 </CardHeader>
-                <CardContent className="h-64">
+                <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
@@ -428,9 +428,9 @@ export default function ZoneDetailPage() {
               {/* Power Factor Chart */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
-                  <CardTitle>Power Factor over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">Power Factor over Time</CardTitle>
                 </CardHeader>
-                <CardContent className="h-64">
+                <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
@@ -446,9 +446,9 @@ export default function ZoneDetailPage() {
               {/* Energy Chart */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
-                  <CardTitle>Energy (kWh) - Cumulative</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">Energy (kWh) - Cumulative</CardTitle>
                 </CardHeader>
-                <CardContent className="h-64">
+                <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
@@ -464,9 +464,9 @@ export default function ZoneDetailPage() {
               {/* Frequency Chart */}
               <Card className="bg-slate-800 border-slate-700">
                 <CardHeader>
-                  <CardTitle>Frequency (Hz) over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg">Frequency (Hz) over Time</CardTitle>
                 </CardHeader>
-                <CardContent className="h-64">
+                <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
@@ -482,7 +482,7 @@ export default function ZoneDetailPage() {
           </div>
         )}
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {/* Side Panels */}
           <Card className="bg-slate-800 border-slate-700">
             <CardHeader>

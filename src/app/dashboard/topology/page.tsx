@@ -327,65 +327,67 @@ export default function TopologyPage() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex justify-between items-start">
-        <div>
-          <h2 className="text-3xl font-bold flex items-center gap-2">
-            <ZapIcon className="w-8 h-8 text-yellow-400" />
-            Live Grid Topology (IEC 60617)
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+        <div className="flex-1">
+          <h2 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+            <ZapIcon className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />
+            <span className="break-words">Live Grid Topology (IEC 60617)</span>
           </h2>
-          <p className="text-slate-400 mt-1">
+          <p className="text-slate-400 mt-1 text-sm sm:text-base">
             Real-time visualization using IEC standard electrical symbols
           </p>
-          <div className="flex gap-4 mt-2 text-sm">
+          <div className="flex flex-wrap gap-3 sm:gap-4 mt-2 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-green-500"></div>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-green-500"></div>
               <span className="text-slate-300">Normal</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-red-500"></div>
               <span className="text-slate-300">Fault</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full bg-slate-500"></div>
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-slate-500"></div>
               <span className="text-slate-300">Offline</span>
             </div>
           </div>
         </div>
-        <Button onClick={handleTriggerFlisr} disabled={isFlisrLoading || faultEventId === null}>
+        <Button
+          onClick={handleTriggerFlisr}
+          disabled={isFlisrLoading || faultEventId === null}
+          className="w-full sm:w-auto flex-shrink-0"
+        >
           {isFlisrLoading ? "Processing..." : "Trigger FLISR"}
         </Button>
       </div>
 
       {/* Status Banner */}
-      <div className={`p-4 rounded-lg border-2 ${
+      <div className={`p-3 sm:p-4 rounded-lg border-2 ${
         tieClosed
           ? 'bg-yellow-950 border-yellow-600'
           : 'bg-green-950 border-green-600'
       }`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            {tieClosed ? (
-              <>
-                <AlertTriangle className="w-6 h-6 text-yellow-400" />
-                <div>
-                  <p className="font-bold text-yellow-200">FLISR Active - Fault Detected</p>
-                  <p className="text-sm text-yellow-300">
-                    Tie relay is CLOSED to restore power to healthy zones
-                  </p>
-                </div>
-              </>
-            ) : (
-              <>
-                <ZapIcon className="w-6 h-6 text-green-400" />
-                <div>
-                  <p className="font-bold text-green-200">Normal Operation</p>
-                  <p className="text-sm text-green-300">
-                    All zones operating normally - Tie relay OPEN
-                  </p>
-                </div>
-              </>
-            )}
-          </div>
+        <div className="flex items-center gap-3">
+          {tieClosed ? (
+            <>
+              <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="font-bold text-yellow-200 text-sm sm:text-base">FLISR Active - Fault Detected</p>
+                <p className="text-xs sm:text-sm text-yellow-300">
+                  Tie relay is CLOSED to restore power to healthy zones
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <ZapIcon className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="font-bold text-green-200 text-sm sm:text-base">Normal Operation</p>
+                <p className="text-xs sm:text-sm text-green-300">
+                  All zones operating normally - Tie relay OPEN
+                </p>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -411,7 +413,7 @@ export default function TopologyPage() {
       )}
 
       {/* Topology Canvas */}
-      <div className="w-full h-[70vh] border-2 rounded-lg border-slate-700 bg-slate-900">
+      <div className="w-full h-[50vh] sm:h-[60vh] lg:h-[70vh] border-2 rounded-lg border-slate-700 bg-slate-900">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -419,7 +421,7 @@ export default function TopologyPage() {
           onEdgesChange={onEdgesChange}
           nodeTypes={nodeTypes}
           fitView
-          minZoom={0.5}
+          minZoom={0.3}
           maxZoom={1.5}
         >
           <Controls />
@@ -428,21 +430,21 @@ export default function TopologyPage() {
       </div>
 
       {/* Legend */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-slate-800 rounded-lg border border-slate-700">
-        <div className="flex flex-col items-center">
-          <div className="text-sm font-semibold text-slate-300 mb-1">Power Source</div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-slate-800 rounded-lg border border-slate-700">
+        <div className="flex flex-col items-center text-center">
+          <div className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">Power Source</div>
           <div className="text-xs text-slate-400">AC Generator (~)</div>
         </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm font-semibold text-slate-300 mb-1">V&A Meter</div>
+        <div className="flex flex-col items-center text-center">
+          <div className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">V&A Meter</div>
           <div className="text-xs text-slate-400">PZEM Sensor</div>
         </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm font-semibold text-slate-300 mb-1">Circuit Breaker</div>
+        <div className="flex flex-col items-center text-center">
+          <div className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">Circuit Breaker</div>
           <div className="text-xs text-slate-400">Relay Control</div>
         </div>
-        <div className="flex flex-col items-center">
-          <div className="text-sm font-semibold text-slate-300 mb-1">Tie Switch</div>
+        <div className="flex flex-col items-center text-center">
+          <div className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">Tie Switch</div>
           <div className="text-xs text-slate-400">Normally Open</div>
         </div>
       </div>

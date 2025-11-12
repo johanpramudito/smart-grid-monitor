@@ -206,3 +206,73 @@
       });
     }
   }
+
+  /**
+   * Initialize MQTT telemetry subscriber
+   * Only call this in non-serverless environments (Azure App Service, Railway, etc.)
+   * DO NOT use on Vercel or other serverless platforms!
+   */
+  export function initializeTelemetrySubscriber(): void {
+    const client = getMqttClient();
+
+    // Subscribe to all device telemetry topics
+    client.subscribe('/device/+/telemetry', { qos: 1 }, (error) => {
+      if (error) {
+        console.error('[MQTT] Failed to subscribe to telemetry topics:', error);
+      } else {
+        console.log('[MQTT] Subscribed to /device/+/telemetry');
+      }
+    });
+
+    // Handle incoming telemetry messages
+    client.on('message', async (topic, message) => {
+      try {
+        // Only process telemetry messages
+        if (!topic.includes('/telemetry')) return;
+
+        // Parse topic to extract device key
+        // Format: /device/{deviceKeyId}/telemetry
+        const parts = topic.split('/');
+        if (parts.length !== 4 || parts[1] !== 'device' || parts[3] !== 'telemetry') {
+          console.warn('[MQTT] Invalid topic format:', topic);
+          return;
+        }
+
+        const deviceKeyId = parts[2];
+        const payload = JSON.parse(message.toString());
+
+        // Find zone ID from device key
+        const zoneId = Object.keys(ZONE_TO_DEVICE_MAP).find(
+          key => ZONE_TO_DEVICE_MAP[key] === deviceKeyId
+        );
+
+        if (!zoneId) {
+          console.warn(`[MQTT] No zone mapping for device ${deviceKeyId}`);
+          return;
+        }
+
+        console.log(`[MQTT] Received telemetry from ${deviceKeyId} (zone ${zoneId})`);
+
+        // Import dynamically to avoid circular dependencies
+        const { findDeviceByZoneId } = await import('../device/registry');
+        const { ingestTelemetry } = await import('../device/telemetry');
+
+        const device = await findDeviceByZoneId(zoneId);
+        if (!device) {
+          console.error(`[MQTT] No device found for zone ${zoneId}`);
+          return;
+        }
+
+        await ingestTelemetry(device, {
+          ...payload,
+          timestamp: payload.timestamp ? new Date(payload.timestamp) : new Date(),
+        });
+
+        console.log(`[MQTT] Telemetry ingested for device ${deviceKeyId}`);
+      } catch (error) {
+        console.error('[MQTT] Error processing telemetry:', error);
+      }
+    });
+
+    console.log('[MQTT] Telemetry subscriber initialized');
+  }

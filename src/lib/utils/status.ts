@@ -226,7 +226,8 @@ export function expectsTelemetry(relayState: 'OPEN' | 'CLOSED', status: AllStatu
 export function getStatusExplanation(
   status: AllStatus,
   relayState: 'OPEN' | 'CLOSED',
-  hasTelemetry: boolean
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _hasTelemetry: boolean
 ): string {
   if (status === 'OFFLINE' && relayState === 'CLOSED') {
     return '⚠️ Hardware fault detected! Relay is closed but PZEM is not responding. Check physical connections.';

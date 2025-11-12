@@ -39,7 +39,7 @@ export function PowerSupplyNode({ data }: NodeProps<PowerSupplyNodeData>) {
   return (
     <div className="flex flex-col items-center">
       <VoltageSource status="NORMAL" size={80} />
-      <div className="mt-2 text-sm font-bold text-slate-200 bg-slate-800 px-3 py-1 rounded-md border border-slate-600">
+      <div className="mt-1 sm:mt-2 text-xs sm:text-sm font-bold text-slate-200 bg-slate-800 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md border border-slate-600 whitespace-nowrap">
         {data.label}
       </div>
       <Handle
@@ -77,7 +77,7 @@ export function SensorNode({ data, id }: NodeProps<SensorNodeData>) {
         label={`F${data.feederNumber}`}
       />
 
-      <div className={`mt-2 px-3 py-1 rounded-md text-xs font-semibold ${
+      <div className={`mt-1 sm:mt-2 px-2 sm:px-3 py-0.5 sm:py-1 rounded-md text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
         data.status === 'FAULT'
           ? 'bg-red-900 text-red-200 border border-red-600'
           : 'bg-green-900 text-green-200 border border-green-600'
@@ -86,7 +86,7 @@ export function SensorNode({ data, id }: NodeProps<SensorNodeData>) {
       </div>
 
       {data.activeFaults > 0 && (
-        <div className="mt-1 px-2 py-0.5 bg-red-600 text-white text-xs rounded-full font-bold">
+        <div className="mt-0.5 sm:mt-1 px-1.5 sm:px-2 py-0.5 bg-red-600 text-white text-[9px] sm:text-xs rounded-full font-bold whitespace-nowrap">
           ⚠ {data.activeFaults} Fault{data.activeFaults > 1 ? 's' : ''}
         </div>
       )}
@@ -128,7 +128,7 @@ export function RelayNode({ data }: NodeProps<RelayNodeData>) {
         size={70}
       />
 
-      <div className={`mt-1 px-2 py-1 rounded text-xs font-semibold ${
+      <div className={`mt-0.5 sm:mt-1 px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs font-semibold whitespace-nowrap ${
         closed
           ? 'bg-green-900 text-green-200 border border-green-600'
           : 'bg-slate-800 text-slate-300 border border-slate-600'
@@ -136,7 +136,7 @@ export function RelayNode({ data }: NodeProps<RelayNodeData>) {
         {data.label}
       </div>
 
-      <div className="mt-0.5 text-xs font-mono text-slate-400">
+      <div className="mt-0.5 text-[9px] sm:text-xs font-mono text-slate-400 whitespace-nowrap">
         {closed ? 'CLOSED' : 'OPEN'}
       </div>
 
@@ -195,7 +195,7 @@ export function TieRelayNode({ data }: NodeProps<TieRelayNodeData>) {
         size={100}
       />
 
-      <div className={`mt-2 px-4 py-1.5 rounded-md text-sm font-bold ${
+      <div className={`mt-1 sm:mt-2 px-3 sm:px-4 py-1 sm:py-1.5 rounded-md text-xs sm:text-sm font-bold whitespace-nowrap ${
         closed
           ? 'bg-green-600 text-white border-2 border-green-400'
           : 'bg-slate-700 text-slate-300 border-2 border-slate-500'
@@ -204,7 +204,7 @@ export function TieRelayNode({ data }: NodeProps<TieRelayNodeData>) {
       </div>
 
       {closed && (
-        <div className="mt-1 px-3 py-1 bg-yellow-600 text-yellow-50 text-xs rounded-full font-semibold animate-pulse">
+        <div className="mt-0.5 sm:mt-1 px-2 sm:px-3 py-0.5 sm:py-1 bg-yellow-600 text-yellow-50 text-[10px] sm:text-xs rounded-full font-semibold animate-pulse whitespace-nowrap">
           ⚡ ENERGIZED
         </div>
       )}
