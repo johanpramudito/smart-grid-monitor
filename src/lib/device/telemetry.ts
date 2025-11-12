@@ -24,32 +24,31 @@ type TelemetryInput = {
 };
 
 async function getOrCreateSensor(client: PoolClient, zoneId: string, type: SensorType) {
-  const existing = await client.query<{ sensor_id: string }>(
-    `
-      SELECT sensor_id
-      FROM "Sensor"
-      WHERE zone_agent_id = $1
-        AND type = $2
-      ORDER BY installed_at ASC
-      LIMIT 1
-    `,
-    [zoneId, type],
-  );
-
-  if (existing.rows[0]) {
-    return existing.rows[0].sensor_id;
-  }
-
-  const created = await client.query<{ sensor_id: string }>(
+  // Use UPSERT to avoid separate SELECT query
+  const result = await client.query<{ sensor_id: string }>(
     `
       INSERT INTO "Sensor" (zone_agent_id, type)
       VALUES ($1, $2)
+      ON CONFLICT (zone_agent_id, type)
+      DO UPDATE SET zone_agent_id = EXCLUDED.zone_agent_id
       RETURNING sensor_id
     `,
     [zoneId, type],
   );
 
-  return created.rows[0].sensor_id;
+  if (result.rows[0]) {
+    return result.rows[0].sensor_id;
+  }
+
+  // Fallback: if no conflict clause matched, try direct select
+  const existing = await client.query<{ sensor_id: string }>(
+    `SELECT sensor_id FROM "Sensor"
+     WHERE zone_agent_id = $1 AND type = $2
+     LIMIT 1`,
+    [zoneId, type],
+  );
+
+  return existing.rows[0].sensor_id;
 }
 
 async function recordSensorValue(
@@ -114,95 +113,125 @@ export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput
     await client.query('BEGIN');
     const zoneId = device.zone_agent_id;
 
-    // Record voltage and current (use existing logic for backward compatibility)
-    if (typeof input.voltage === 'number') {
-      const voltageSensorId = await getOrCreateSensor(client, zoneId, 'VOLTAGE');
-      await recordSensorValue(client, voltageSensorId, input.timestamp, input.voltage, 'voltage');
+    // Batch sensor creation for all needed sensor types
+    const sensorPromises = [];
+    const needsVoltage = input.voltage !== undefined ||
+                         input.power !== undefined || input.pf !== undefined ||
+                         input.energy !== undefined || input.frequency !== undefined;
+    const needsCurrent = input.current !== undefined;
+
+    if (needsVoltage) {
+      sensorPromises.push(getOrCreateSensor(client, zoneId, 'VOLTAGE'));
+    }
+    if (needsCurrent) {
+      sensorPromises.push(getOrCreateSensor(client, zoneId, 'CURRENT'));
     }
 
-    if (typeof input.current === 'number') {
-      const currentSensorId = await getOrCreateSensor(client, zoneId, 'CURRENT');
-      await recordSensorValue(client, currentSensorId, input.timestamp, input.current, 'current');
+    const sensors = await Promise.all(sensorPromises);
+    const voltageSensorId = needsVoltage ? sensors[0] : null;
+    const currentSensorId = needsCurrent ? sensors[needsVoltage ? 1 : 0] : null;
+
+    // Batch all sensor reading inserts into a single query
+    const insertBatch: string[] = [];
+    const insertParams: any[] = [];
+    let paramIndex = 1;
+
+    if (voltageSensorId && typeof input.voltage === 'number') {
+      const sensorIdParam = paramIndex++;
+      const voltageParam = paramIndex++;
+      const timestampParam = paramIndex++;
+
+      insertBatch.push(`($${sensorIdParam}, $${voltageParam}, NULL, NULL, NULL, NULL, NULL, $${timestampParam})`);
+      insertParams.push(voltageSensorId, input.voltage, input.timestamp.toISOString());
     }
 
-    // Record power metrics (power, pf, energy, frequency) - use voltage sensor as the parent
+    if (currentSensorId && typeof input.current === 'number') {
+      const sensorIdParam = paramIndex++;
+      const currentParam = paramIndex++;
+      const timestampParam = paramIndex++;
+
+      insertBatch.push(`($${sensorIdParam}, NULL, $${currentParam}, NULL, NULL, NULL, NULL, $${timestampParam})`);
+      insertParams.push(currentSensorId, input.current, input.timestamp.toISOString());
+    }
+
+    // Add power metrics row
     const hasPowerMetrics = input.power !== undefined || input.pf !== undefined ||
                            input.energy !== undefined || input.frequency !== undefined;
 
-    if (hasPowerMetrics) {
-      const voltageSensorId = await getOrCreateSensor(client, zoneId, 'VOLTAGE');
-      await recordPowerMetrics(
-        client,
-        voltageSensorId,
-        input.timestamp,
-        input.power,
-        input.pf,
-        input.energy,
-        input.frequency
+    if (voltageSensorId && hasPowerMetrics) {
+      const sensorIdParam = paramIndex++;
+      const powerParam = input.power !== undefined ? `$${paramIndex++}` : 'NULL';
+      const pfParam = input.pf !== undefined ? `$${paramIndex++}` : 'NULL';
+      const energyParam = input.energy !== undefined ? `$${paramIndex++}` : 'NULL';
+      const frequencyParam = input.frequency !== undefined ? `$${paramIndex++}` : 'NULL';
+      const timestampParam = paramIndex++;
+
+      insertBatch.push(`($${sensorIdParam}, NULL, NULL, ${powerParam}, ${pfParam}, ${energyParam}, ${frequencyParam}, $${timestampParam})`);
+      insertParams.push(voltageSensorId);
+      if (input.power !== undefined) insertParams.push(input.power);
+      if (input.pf !== undefined) insertParams.push(input.pf);
+      if (input.energy !== undefined) insertParams.push(input.energy);
+      if (input.frequency !== undefined) insertParams.push(input.frequency);
+      insertParams.push(input.timestamp.toISOString());
+    }
+
+    // Execute batched sensor inserts
+    if (insertBatch.length > 0) {
+      await client.query(
+        `INSERT INTO "SensorReading" (sensor_id, voltage, current, power, power_factor, energy, frequency, timestamp)
+         VALUES ${insertBatch.join(', ')}`,
+        insertParams
       );
     }
 
-    // Update relay states if provided
+    // Batch relay updates
     if (input.relays && input.relays.length > 0) {
-      for (const relay of input.relays) {
-        // Normalize state: ON/CLOSED -> CLOSED, OFF/OPEN -> OPEN
+      const relayUpdates = input.relays.map(relay => {
         const normalizedState = (relay.state === 'ON' || relay.state === 'CLOSED') ? 'CLOSED' : 'OPEN';
-
-        await client.query(
-          `
-            UPDATE "Relay"
-            SET status = $1, updated_at = NOW()
-            WHERE zone_agent_id = $2 AND relay_number = $3
-          `,
+        return client.query(
+          `UPDATE "Relay" SET status = $1 WHERE zone_agent_id = $2 AND relay_number = $3`,
           [normalizedState, zoneId, relay.relay]
         );
-      }
+      });
+      await Promise.all(relayUpdates);
     }
 
+    // Status and event log updates
     if (input.status) {
-      await client.query(
-        `
-          UPDATE "ZoneAgent"
-          SET status = $1
-          WHERE zone_agent_id = $2
-        `,
-        [input.status, zoneId],
-      );
-
-      await client.query(
-        `
-          INSERT INTO "EventLog" (zone_agent_id, event_type, description, resolved)
-          VALUES ($1, $2, $3, $4)
-        `,
-        [
-          zoneId,
-          input.status === 'FAULT' ? 'FAULT' : 'STATUS_UPDATE',
-          `Device ${device.device_id} reported status ${input.status}`,
-          input.status !== 'FAULT',
-        ],
-      );
+      const statusUpdates = [
+        client.query(
+          `UPDATE "ZoneAgent" SET status = $1 WHERE zone_agent_id = $2`,
+          [input.status, zoneId]
+        ),
+        client.query(
+          `INSERT INTO "EventLog" (zone_agent_id, event_type, description, resolved)
+           VALUES ($1, $2, $3, $4)`,
+          [
+            zoneId,
+            input.status === 'FAULT' ? 'FAULT' : 'STATUS_UPDATE',
+            `Device ${device.device_id} reported status ${input.status}`,
+            input.status !== 'FAULT',
+          ]
+        )
+      ];
 
       if (input.status !== 'FAULT') {
-        await client.query(
-          `
-            UPDATE "EventLog"
-            SET resolved = TRUE
-            WHERE zone_agent_id = $1
-              AND event_type = 'FAULT'
-              AND resolved = FALSE
-          `,
-          [zoneId],
+        statusUpdates.push(
+          client.query(
+            `UPDATE "EventLog" SET resolved = TRUE
+             WHERE zone_agent_id = $1 AND event_type = 'FAULT' AND resolved = FALSE`,
+            [zoneId]
+          )
         );
       }
+
+      await Promise.all(statusUpdates);
     }
 
+    // Update device last seen
     await client.query(
-      `
-        UPDATE "DeviceAgent"
-        SET last_seen = NOW(), updated_at = NOW()
-        WHERE device_id = $1
-      `,
-      [device.device_id],
+      `UPDATE "DeviceAgent" SET last_seen = NOW(), updated_at = NOW() WHERE device_id = $1`,
+      [device.device_id]
     );
 
     await client.query('COMMIT');
