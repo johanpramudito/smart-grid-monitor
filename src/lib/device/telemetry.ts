@@ -51,62 +51,6 @@ async function getOrCreateSensor(client: PoolClient, zoneId: string, type: Senso
   return existing.rows[0].sensor_id;
 }
 
-async function recordSensorValue(
-  client: PoolClient,
-  sensorId: string,
-  timestamp: Date,
-  value: number,
-  field: 'voltage' | 'current',
-) {
-  await client.query(
-    `
-      INSERT INTO "SensorReading" (sensor_id, ${field}, timestamp)
-      VALUES ($1, $2, $3)
-    `,
-    [sensorId, value, timestamp.toISOString()],
-  );
-}
-
-async function recordPowerMetrics(
-  client: PoolClient,
-  sensorId: string,
-  timestamp: Date,
-  power?: number,
-  powerFactor?: number,
-  energy?: number,
-  frequency?: number,
-) {
-  // Build dynamic SQL based on which values are provided
-  const fields: string[] = ['sensor_id', 'timestamp'];
-  const values: (string | number)[] = [sensorId, timestamp.toISOString()];
-
-  if (power !== undefined) {
-    fields.push('power');
-    values.push(power);
-  }
-  if (powerFactor !== undefined) {
-    fields.push('power_factor');
-    values.push(powerFactor);
-  }
-  if (energy !== undefined) {
-    fields.push('energy');
-    values.push(energy);
-  }
-  if (frequency !== undefined) {
-    fields.push('frequency');
-    values.push(frequency);
-  }
-
-  if (fields.length > 2) { // Only insert if we have data beyond sensor_id and timestamp
-    const placeholders = values.map((_, i) => `$${i + 1}`).join(', ');
-    await client.query(
-      `INSERT INTO "SensorReading" (${fields.join(', ')})
-       VALUES (${placeholders})`,
-      values,
-    );
-  }
-}
-
 export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput) {
   const client = await pool.connect();
   try {
@@ -133,7 +77,7 @@ export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput
 
     // Batch all sensor reading inserts into a single query
     const insertBatch: string[] = [];
-    const insertParams: any[] = [];
+    const insertParams: (string | number)[] = [];
     let paramIndex = 1;
 
     if (voltageSensorId && typeof input.voltage === 'number') {
