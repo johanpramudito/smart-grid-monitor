@@ -1,9 +1,13 @@
 /**
  * POST /api/relay/control
  *
- * Force manual relay control (ON/OFF) for a specific zone.
- * This endpoint updates the relay status in the database and publishes
- * an MQTT command to the IoT device.
+ * Force manual relay control (ON/OFF/AUTO) for a specific zone.
+ * - CLOSED/ON: Close the relay contact (manual override)
+ * - OPEN/OFF: Open the relay contact (manual override)
+ * - AUTO: Exit manual override mode and return to automatic protection
+ *
+ * This endpoint updates the relay status in the database (for OPEN/CLOSED commands)
+ * and publishes an MQTT command to the IoT device.
  */
 
 import { NextResponse } from 'next/server';
@@ -17,8 +21,8 @@ import { publishRelayCommand, RelayCommand } from '@/lib/mqtt/client';
 const relayControlSchema = z.object({
   zoneAgentId: z.string().uuid('Invalid zone agent ID format'),
   relayNumber: z.number().int().positive('Relay number must be positive'),
-  command: z.enum(['CLOSED', 'OPEN', 'ON', 'OFF'], {
-    message: 'Command must be CLOSED, OPEN, ON, or OFF',
+  command: z.enum(['CLOSED', 'OPEN', 'ON', 'OFF', 'AUTO'], {
+    message: 'Command must be CLOSED, OPEN, ON, OFF, or AUTO',
   }),
 });
 
@@ -64,6 +68,52 @@ export async function POST(request: Request) {
 
     const zone = zoneCheck.rows[0];
 
+    // Handle AUTO command specially - it exits manual override mode
+    // without directly changing relay state in database
+    if (command === 'AUTO') {
+      // Log the AUTO command event
+      await client.query(
+        `
+        INSERT INTO "EventLog" (
+          zone_agent_id,
+          event_type,
+          description,
+          resolved
+        )
+        VALUES ($1, $2, $3, $4)
+        `,
+        [
+          zoneAgentId,
+          'AUTO_PROTECTION',
+          `Manual override exit requested - Relay ${relayNumber} returning to automatic protection mode`,
+          true,
+        ]
+      );
+
+      // Publish MQTT AUTO command to STM32
+      const timestamp = new Date().toISOString();
+      await publishRelayCommand({
+        zoneId: zoneAgentId,
+        relayNumber,
+        command: 'AUTO',
+        timestamp,
+        source: 'MANUAL',
+      });
+
+      return NextResponse.json(
+        {
+          message: `Relay ${relayNumber} returning to automatic protection mode`,
+          relay: {
+            zone_agent_id: zoneAgentId,
+            relay_number: relayNumber,
+            command_sent: 'AUTO',
+            timestamp,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
     // Allow manual override even during fault (removed restriction)
     // WARNING: This allows operators to override protection systems
     // Consider logging this as a critical action for audit trail
@@ -91,21 +141,11 @@ export async function POST(request: Request) {
     const relay = relayCheck.rows[0];
     const newStatus = command === 'CLOSED' ? 'CLOSED' : 'OPEN';
 
-    // Check if the relay is already in the desired state
-    if (relay.status === newStatus) {
-      return NextResponse.json(
-        {
-          message: `Relay is already ${newStatus}`,
-          relay: {
-            relay_id: relay.relay_id,
-            zone_agent_id: zoneAgentId,
-            relay_number: relayNumber,
-            status: newStatus,
-          },
-        },
-        { status: 200 }
-      );
-    }
+    // NOTE: We do NOT check if relay.status === newStatus because:
+    // 1. Database is a CACHE, STM32 GPIO is the SOURCE OF TRUTH
+    // 2. After protection trips, STM32 opens relay but DB may not update immediately
+    // 3. Always send MQTT command to ensure physical state matches intent
+    // 4. Database will sync when telemetry arrives
 
     // Begin transaction
     await client.query('BEGIN');

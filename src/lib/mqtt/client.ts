@@ -5,7 +5,7 @@
    * to IoT devices (STM32 + ESP-01) in the smart grid system.
    */
 
-  import mqtt, { MqttClient } from 'mqtt';
+  import mqtt, { MqttClient, IClientOptions } from 'mqtt';
 
   let mqttClient: MqttClient | null = null;
 
@@ -24,14 +24,28 @@
    */
   export function getMqttClient(): MqttClient {
     if (!mqttClient) {
-      mqttClient = mqtt.connect(MQTT_CONFIG.brokerUrl, {
+      // Parse broker URL to determine if TLS is enabled
+      const isTLS = MQTT_CONFIG.brokerUrl.startsWith('mqtts://') ||
+                    MQTT_CONFIG.brokerUrl.startsWith('wss://');
+
+      const connectionOptions: IClientOptions = {
         clientId: MQTT_CONFIG.clientId,
         username: MQTT_CONFIG.username,
         password: MQTT_CONFIG.password,
         clean: true,
         reconnectPeriod: 5000, // Reconnect every 5 seconds if disconnected
         connectTimeout: 30 * 1000, // 30 seconds
-      });
+      };
+
+      // Add TLS options if using secure connection
+      if (isTLS) {
+        connectionOptions.rejectUnauthorized = false; // Skip certificate validation for now
+        console.log('[MQTT] Using TLS/SSL connection');
+        console.log('[MQTT] Note: Certificate validation is disabled');
+        console.log('[MQTT] For production, enable certificate verification!');
+      }
+
+      mqttClient = mqtt.connect(MQTT_CONFIG.brokerUrl, connectionOptions);
 
       mqttClient.on('connect', () => {
         console.log('[MQTT] Connected to broker:', MQTT_CONFIG.brokerUrl);
@@ -55,8 +69,11 @@
 
   /**
    * Relay command types
+   * - CLOSED/ON: Close the relay contact
+   * - OPEN/OFF: Open the relay contact
+   * - AUTO: Exit manual override mode and return to automatic protection
    */
-  export type RelayCommand = 'CLOSED' | 'OPEN' | 'ON' | 'OFF';
+  export type RelayCommand = 'CLOSED' | 'OPEN' | 'ON' | 'OFF' | 'AUTO';
 
   /**
    * MQTT topic structure for relay control
@@ -108,10 +125,10 @@
     const topic = `/device/${deviceKeyId}/control`;
 
     // Create the message in format expected by STM32:
-    // {"relay":1,"state":"CLOSED"}
+    // {"relay":1,"state":"CLOSED"} or {"relay":1,"state":"AUTO"}
     const message = JSON.stringify({
       relay: payload.relayNumber,
-      state: payload.command, // CLOSED, OPEN, ON, OFF
+      state: payload.command, // CLOSED, OPEN, ON, OFF, AUTO
     });
 
     return new Promise((resolve, reject) => {

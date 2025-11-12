@@ -36,6 +36,8 @@ interface ZoneDetails {
   fault_timestamp: string | null;
   device_id: string | null;
   device_last_seen: string | null;
+  relay_state?: string; // OPEN or CLOSED
+  manual_override?: boolean; // Is relay in manual override mode?
 }
 
 interface AllZonesStatus {
@@ -138,7 +140,7 @@ export default function ZoneDetailPage() {
     };
   }, [id]);
 
-  const handleRelayControl = async (command: 'CLOSED' | 'OPEN') => {
+  const handleRelayControl = async (command: 'CLOSED' | 'OPEN' | 'AUTO') => {
     if (!id) return;
 
     setRelayControlLoading(true);
@@ -202,6 +204,7 @@ export default function ZoneDetailPage() {
   const isFault = details.status === "FAULT";
   const isTieRelay = details.feeder_number === 99;
   const isManualMode = details.status === "MANUAL";
+  const isManualOverride = details.manual_override === true;
 
   const formattedHistory = history.map(h => ({
       ...h,
@@ -365,114 +368,119 @@ export default function ZoneDetailPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          {/* Charts */}
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Voltage (V) over Time</CardTitle>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={formattedHistory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 250]} />
-                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                  <Line type="monotone" dataKey="voltage" stroke="#38BDF8" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Current (A) over Time</CardTitle>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={formattedHistory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 6]} />
-                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                  <Line type="monotone" dataKey="current" stroke="#FBBF24" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+      <div className={`grid grid-cols-1 ${isTieRelay ? 'lg:grid-cols-1' : 'lg:grid-cols-3'} gap-6`}>
+        {/* Charts - Only show for regular feeders, not for tie relay */}
+        {!isTieRelay && (
+          <div className="lg:col-span-2 space-y-6">
+            {/* Regular Feeders: Show all electrical parameters */}
+            <>
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Voltage (V) over Time</CardTitle>
+                </CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={formattedHistory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                      <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 250]} />
+                      <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                      <Line type="monotone" dataKey="voltage" stroke="#38BDF8" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Current (A) over Time</CardTitle>
+                </CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={formattedHistory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                      <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 6]} />
+                      <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                      <Line type="monotone" dataKey="current" stroke="#FBBF24" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-          {/* Power Chart */}
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Power (W) over Time</CardTitle>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={formattedHistory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1500]} />
-                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                  <Line type="monotone" dataKey="power" stroke="#10B981" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              {/* Power Chart */}
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Power (W) over Time</CardTitle>
+                </CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={formattedHistory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                      <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1500]} />
+                      <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                      <Line type="monotone" dataKey="power" stroke="#10B981" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-          {/* Power Factor Chart */}
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Power Factor over Time</CardTitle>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={formattedHistory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1]} />
-                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                  <Line type="monotone" dataKey="power_factor" stroke="#8B5CF6" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              {/* Power Factor Chart */}
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Power Factor over Time</CardTitle>
+                </CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={formattedHistory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                      <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1]} />
+                      <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                      <Line type="monotone" dataKey="power_factor" stroke="#8B5CF6" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-          {/* Energy Chart */}
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Energy (kWh) - Cumulative</CardTitle>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={formattedHistory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} />
-                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                  <Line type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+              {/* Energy Chart */}
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Energy (kWh) - Cumulative</CardTitle>
+                </CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={formattedHistory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                      <YAxis stroke="#94A3B8" fontSize={12} />
+                      <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                      <Line type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
 
-          {/* Frequency Chart */}
-          <Card className="bg-slate-800 border-slate-700">
-            <CardHeader>
-              <CardTitle>Frequency (Hz) over Time</CardTitle>
-            </CardHeader>
-            <CardContent className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={formattedHistory}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                  <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                  <YAxis stroke="#94A3B8" fontSize={12} domain={[49, 51]} />
-                  <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                  <Line type="monotone" dataKey="frequency" stroke="#EC4899" strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
+              {/* Frequency Chart */}
+              <Card className="bg-slate-800 border-slate-700">
+                <CardHeader>
+                  <CardTitle>Frequency (Hz) over Time</CardTitle>
+                </CardHeader>
+                <CardContent className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={formattedHistory}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
+                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
+                      <YAxis stroke="#94A3B8" fontSize={12} domain={[49, 51]} />
+                      <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
+                      <Line type="monotone" dataKey="frequency" stroke="#EC4899" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+            </>
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Side Panels */}
@@ -599,6 +607,30 @@ export default function ZoneDetailPage() {
                     System is in FAULT state. Manual override will bypass protection systems. Use with caution!
                   </AlertDescription>
                 </Alert>
+              )}
+              {isManualOverride && (
+                <Alert className="mb-3 border-orange-500 bg-orange-950">
+                  <AlertTriangle className="h-4 w-4 text-orange-400" />
+                  <AlertTitle className="text-orange-300">Manual Override Active</AlertTitle>
+                  <AlertDescription className="text-orange-200">
+                    This relay is under manual control. Automatic protection is bypassed.
+                    Click "Return to Auto Protection" to re-enable automatic control after 60 seconds or immediately.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {isManualOverride && (
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  disabled={relayControlLoading}
+                  onClick={() => handleRelayControl('AUTO')}
+                >
+                  {relayControlLoading ? (
+                    <Loader className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Power className="mr-2 h-4 w-4" />
+                  )}
+                  Return to Auto Protection
+                </Button>
               )}
               <Button
                 className="w-full bg-green-600 hover:bg-green-700"

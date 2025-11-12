@@ -3,6 +3,12 @@ import { z } from 'zod';
 import { findDeviceByApiKey } from '../../../../lib/device/registry';
 import { ingestTelemetry } from '../../../../lib/device/telemetry';
 
+const relaySchema = z.object({
+  relay: z.number().int().positive(),
+  state: z.enum(['OPEN', 'CLOSED', 'ON', 'OFF']),
+  override: z.boolean().optional(),
+});
+
 const telemetrySchema = z
   .object({
     voltage: z.number().finite().optional(),
@@ -11,7 +17,18 @@ const telemetrySchema = z
     pf: z.number().min(0).max(1).optional(), // Power factor: 0.0 to 1.0
     energy: z.number().finite().nonnegative().optional(), // Accumulated energy in kWh
     frequency: z.number().finite().positive().optional(), // AC frequency in Hz
-    status: z.enum(['NORMAL', 'FAULT', 'ISOLATED', 'OFFLINE']).optional(),
+    status: z.enum([
+      'NORMAL',
+      'FAULT',
+      'TRIPPED',
+      'ISOLATED',
+      'LOCKOUT',
+      'OFFLINE',
+      'OPEN',
+      'BACKUP',
+      'PARALLEL'
+    ]).optional(),
+    relays: z.array(relaySchema).optional(),
     timestamp: z.string().datetime().optional(),
   })
   .refine(
