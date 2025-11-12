@@ -614,7 +614,7 @@ export default function ZoneDetailPage() {
                   <AlertTitle className="text-orange-300">Manual Override Active</AlertTitle>
                   <AlertDescription className="text-orange-200">
                     This relay is under manual control. Automatic protection is bypassed.
-                    Click "Return to Auto Protection" to re-enable automatic control after 60 seconds or immediately.
+                    Click &quot;Return to Auto Protection&quot; to re-enable automatic control after 60 seconds or immediately.
                   </AlertDescription>
                 </Alert>
               )}
