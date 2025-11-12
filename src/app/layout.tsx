@@ -19,6 +19,11 @@ export const metadata: Metadata = {
     apple: "/apple-touch-icon.png",
   },
   description: "Monitor and manage your smart grid effectively.",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 5,
+  },
 };
 
 export default function RootLayout({
