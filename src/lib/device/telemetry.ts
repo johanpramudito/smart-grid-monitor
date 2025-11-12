@@ -5,6 +5,12 @@ import type { ZoneStatus } from '../flisr/types';
 
 type SensorType = 'CURRENT' | 'VOLTAGE';
 
+type RelayInfo = {
+  relay: number;
+  state: 'OPEN' | 'CLOSED' | 'ON' | 'OFF';
+  override?: boolean;
+};
+
 type TelemetryInput = {
   timestamp: Date;
   status?: ZoneStatus;
@@ -14,6 +20,7 @@ type TelemetryInput = {
   pf?: number; // power factor
   energy?: number; // accumulated energy in kWh
   frequency?: number; // AC frequency in Hz
+  relays?: RelayInfo[];
 };
 
 async function getOrCreateSensor(client: PoolClient, zoneId: string, type: SensorType) {
@@ -133,6 +140,23 @@ export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput
         input.energy,
         input.frequency
       );
+    }
+
+    // Update relay states if provided
+    if (input.relays && input.relays.length > 0) {
+      for (const relay of input.relays) {
+        // Normalize state: ON/CLOSED -> CLOSED, OFF/OPEN -> OPEN
+        const normalizedState = (relay.state === 'ON' || relay.state === 'CLOSED') ? 'CLOSED' : 'OPEN';
+
+        await client.query(
+          `
+            UPDATE "Relay"
+            SET status = $1, updated_at = NOW()
+            WHERE zone_agent_id = $2 AND relay_number = $3
+          `,
+          [normalizedState, zoneId, relay.relay]
+        );
+      }
     }
 
     if (input.status) {

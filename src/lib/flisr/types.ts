@@ -1,4 +1,13 @@
-export type ZoneStatus = "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+export type ZoneStatus =
+  | "NORMAL"      // Healthy operation
+  | "FAULT"       // Overcurrent detected, protection active
+  | "TRIPPED"     // Relay opened due to fault at this node
+  | "ISOLATED"    // Relay opened by sequencing (downstream fault)
+  | "LOCKOUT"     // Too many attempts, needs manual reset
+  | "OFFLINE"     // Hardware fault (relay closed but PZEM not reading)
+  | "OPEN"        // Relay manually opened or not energized
+  | "BACKUP"      // Tie relay providing backup power
+  | "PARALLEL";   // Tie relay in parallel mode
 
 export interface ZoneState {
   zone_agent_id: string;
