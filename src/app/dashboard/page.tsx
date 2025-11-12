@@ -23,6 +23,8 @@ interface Zone {
     activeFaults: number;
     lastFaultAt: string | null;
     deviceLastSeen: string | null;
+    feederNumber?: number; // Add feeder number for sorting
+    isTie?: boolean; // Add tie relay flag for sorting
   };
   // We will fetch voltage and current separately or assume they are part of another API call
   // For now, we will display status and name.
@@ -58,8 +60,22 @@ export default function DashboardPage() {
         const topologyData = await topologyResponse.json();
 
         setStats(statsData);
+
         // The topology API returns nodes, which are our zones
-        setZones(topologyData.nodes);
+        // Sort zones by feeder number to maintain consistent order:
+        // Zone 1, Zone 2, Zone 3, ..., Tie Relay
+        const sortedZones = [...topologyData.nodes].sort((a: Zone, b: Zone) => {
+          // Tie relay (feeder 99 or isTie flag) should always be last
+          if (a.data.isTie && !b.data.isTie) return 1;
+          if (!a.data.isTie && b.data.isTie) return -1;
+
+          // Sort regular zones by feeder number (1, 2, 3, ...)
+          const feederA = a.data.feederNumber ?? 999;
+          const feederB = b.data.feederNumber ?? 999;
+          return feederA - feederB;
+        });
+
+        setZones(sortedZones);
 
       } catch (err) {
         setError(err instanceof Error ? err.message : "An unknown error occurred");
