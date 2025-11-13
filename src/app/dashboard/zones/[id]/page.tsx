@@ -90,8 +90,12 @@ export default function ZoneDetailPage() {
     if (!id) return;
 
     let isActive = true;
+    let isFirstFetch = true;
 
     const fetchData = async () => {
+      if (isFirstFetch) {
+        setIsLoading(true);
+      }
       try {
         const response = await fetch(`/api/zones/${id}`, { cache: "no-store" });
         if (!response.ok) {
@@ -127,12 +131,18 @@ export default function ZoneDetailPage() {
         setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
         if (!isActive) return;
-        setIsLoading(false);
+        if (isFirstFetch) {
+          setIsLoading(false);
+          isFirstFetch = false;
+        }
       }
     };
 
+    // Initial fetch with loading indicator
     fetchData();
-    const intervalId = window.setInterval(fetchData, 5000);
+
+    // Subsequent fetches without loading indicator (background refresh)
+    const intervalId = window.setInterval(fetchData, 2000); // Refresh every 2 seconds
 
     return () => {
       isActive = false;

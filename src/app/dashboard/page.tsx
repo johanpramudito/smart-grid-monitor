@@ -43,7 +43,10 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchData(showLoading = false) {
+      if (showLoading) {
+        setIsLoading(true);
+      }
       try {
         setError(null);
         // Fetch both stats and zone details in parallel
@@ -80,13 +83,17 @@ export default function DashboardPage() {
       } catch (err) {
         setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
-        setIsLoading(false);
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
     }
 
-    fetchData();
-    // Optional: Set up a polling interval to refresh data periodically
-    const interval = setInterval(fetchData, 10000); // Refresh every 10 seconds
+    // Initial fetch with loading indicator
+    fetchData(true);
+
+    // Subsequent fetches without loading indicator (background refresh)
+    const interval = setInterval(() => fetchData(false), 2000); // Refresh every 2 seconds
     return () => clearInterval(interval);
   }, []);
 

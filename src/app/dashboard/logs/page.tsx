@@ -43,7 +43,10 @@ export default function LogsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchLogs = async () => {
+  const fetchLogs = async (showLoading = false) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
     try {
       const response = await fetch("/api/logs", {
         cache: 'no-store',
@@ -59,17 +62,20 @@ export default function LogsPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unknown error occurred");
     } finally {
-      setIsLoading(false);
+      if (showLoading) {
+        setIsLoading(false);
+      }
     }
   };
 
   useEffect(() => {
-    fetchLogs();
+    // Initial fetch with loading indicator
+    fetchLogs(true);
 
-    // Auto-refresh logs every 5 seconds to show live updates from MQTT devices
+    // Subsequent fetches without loading indicator (background refresh)
     const interval = setInterval(() => {
-      fetchLogs();
-    }, 5000);
+      fetchLogs(false);
+    }, 2000); // Auto-refresh logs every 2 seconds
 
     return () => clearInterval(interval);
   }, []);
