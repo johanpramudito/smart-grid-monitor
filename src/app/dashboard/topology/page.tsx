@@ -12,9 +12,7 @@ import ReactFlow, {
 } from "reactflow";
 import "reactflow/dist/style.css";
 
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, ZapIcon, AlertTriangle } from "lucide-react";
+import { ZapIcon, AlertTriangle } from "lucide-react";
 import {
   nodeTypes,
   type ZoneStatus,
@@ -30,7 +28,6 @@ type ZoneNodeData = {
   feederNumber: number | null;
   isTie: boolean;
   activeFaults: number;
-  faultEventId: number | null;
   faultDescription: string | null;
   lastFaultAt: string | null;
   deviceId: string | null;
@@ -38,17 +35,12 @@ type ZoneNodeData = {
 };
 
 type ZoneNode = Node<ZoneNodeData>;
-type FlisrResponsePayload = Record<string, unknown>;
 
 export default function TopologyPage() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  const [flisrResult, setFlisrResult] = useState<FlisrResponsePayload | null>(null);
-  const [isFlisrLoading, setIsFlisrLoading] = useState(false);
-  const [faultEventId, setFaultEventId] = useState<number | null>(null);
   const [tieClosed, setTieClosed] = useState(false);
 
   const buildGraph = useCallback(
@@ -328,12 +320,9 @@ export default function TopologyPage() {
         },
       });
 
-      const firstFaultNode = mainZones.find((zone) => zone.data.faultEventId !== null);
-
       return {
         nodes: graphNodes,
         edges: graphEdges,
-        faultEventId: firstFaultNode?.data.faultEventId ?? null,
         tieClosed: tieIsClosed,
       };
     },
@@ -354,7 +343,6 @@ export default function TopologyPage() {
       const graph = buildGraph(data);
       setNodes(graph.nodes);
       setEdges(graph.edges);
-      setFaultEventId(graph.faultEventId);
       setTieClosed(graph.tieClosed);
       setError(null); // Clear any previous errors
     } catch (err) {
@@ -377,34 +365,6 @@ export default function TopologyPage() {
 
     return () => clearInterval(interval);
   }, [fetchTopology]);
-
-  const handleTriggerFlisr = async () => {
-    if (!faultEventId) {
-      setFlisrResult({ message: "No active fault event to process." });
-      return;
-    }
-    setIsFlisrLoading(true);
-    setFlisrResult(null);
-    try {
-      const response = await fetch("/api/flisr", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ faultEventId }),
-      });
-      const result = await response.json();
-      if (!response.ok) {
-        throw new Error(result.message || "An error occurred during the FLISR process.");
-      }
-      setFlisrResult(result);
-      fetchTopology();
-    } catch (error) {
-      setFlisrResult({
-        message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      });
-    } finally {
-      setIsFlisrLoading(false);
-    }
-  };
 
   if (isLoading) {
     return (
@@ -448,13 +408,6 @@ export default function TopologyPage() {
             </div>
           </div>
         </div>
-        <Button
-          onClick={handleTriggerFlisr}
-          disabled={isFlisrLoading || faultEventId === null}
-          className="w-full sm:w-auto flex-shrink-0"
-        >
-          {isFlisrLoading ? "Processing..." : "Trigger FLISR"}
-        </Button>
       </div>
 
       {/* Status Banner */}
@@ -488,26 +441,6 @@ export default function TopologyPage() {
         </div>
       </div>
 
-      {/* FLISR Result */}
-      {flisrResult && (
-        <Alert>
-          <Terminal className="h-4 w-4" />
-          <AlertTitle>FLISR Process Report</AlertTitle>
-          <AlertDescription>
-            <pre className="text-xs whitespace-pre-wrap">
-              {JSON.stringify(flisrResult, null, 2)}
-            </pre>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {faultEventId === null && (
-        <Alert>
-          <AlertDescription>
-            No unresolved faults detected. Restoration planner is on standby.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Topology Canvas */}
       <div className="w-full h-[50vh] sm:h-[60vh] lg:h-[70vh] border-2 rounded-lg border-slate-700 bg-slate-900">

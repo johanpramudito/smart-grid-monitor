@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { pool } from "@/lib/database/connection";
 import { publishRelayCommand } from "@/lib/mqtt/client";
 
 export const dynamic = "force-dynamic";
@@ -11,10 +11,12 @@ export const dynamic = "force-dynamic";
  * Only sends commands to relays that are actually OPEN
  * Designed for post-fault restoration by technicians
  */
-export async function POST(request: NextRequest) {
+export async function POST() {
+  const client = await pool.connect();
+
   try {
     // Fetch all zones with their current relay states
-    const zones = await db.query(
+    const zones = await client.query(
       `SELECT
         za.zone_agent_id,
         za.feeder_number,
@@ -71,33 +73,28 @@ export async function POST(request: NextRequest) {
         }
 
         // Publish MQTT command to close relay
-        const success = await publishRelayCommand(
-          zone.device_key_id,
-          1, // relay number (always 1 for zone relays)
-          "CLOSED"
+        await publishRelayCommand({
+          zoneId: zone.zone_agent_id,
+          relayNumber: 1, // always 1 for zone relays
+          command: "CLOSED",
+          timestamp: new Date().toISOString(),
+          source: "MANUAL",
+        });
+
+        // Update database relay state
+        await client.query(
+          `UPDATE "Relay"
+           SET state = 'CLOSED', updated_at = NOW()
+           WHERE relay_id = $1`,
+          [zone.relay_id]
         );
 
-        if (success) {
-          // Update database relay state
-          await db.query(
-            `UPDATE "Relay"
-             SET state = 'CLOSED', updated_at = NOW()
-             WHERE relay_id = $1`,
-            [zone.relay_id]
-          );
-
-          closedRelays.push({
-            zoneId: zone.zone_agent_id,
-            feederNumber: zone.feeder_number,
-            location: zone.location_description || `Zone ${zone.feeder_number}`,
-            deviceKeyId: zone.device_key_id,
-          });
-        } else {
-          errors.push({
-            zoneId: zone.zone_agent_id,
-            error: "MQTT publish failed",
-          });
-        }
+        closedRelays.push({
+          zoneId: zone.zone_agent_id,
+          feederNumber: zone.feeder_number,
+          location: zone.location_description || `Zone ${zone.feeder_number}`,
+          deviceKeyId: zone.device_key_id,
+        });
       } catch (err) {
         console.error(`Error closing relay for zone ${zone.zone_agent_id}:`, err);
         errors.push({
@@ -123,5 +120,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 500 }
     );
+  } finally {
+    client.release();
   }
 }
