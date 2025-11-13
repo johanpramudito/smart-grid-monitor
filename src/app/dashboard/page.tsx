@@ -22,7 +22,16 @@ interface Zone {
   id: string;
   data: {
     label: string;
-    status: "NORMAL" | "FAULT" | "TRIPPED" | "ISOLATED" | "LOCKOUT" | "OFFLINE" | "OPEN" | "BACKUP" | "PARALLEL";
+    status:
+      | "NORMAL"
+      | "FAULT"
+      | "TRIPPED"
+      | "ISOLATED"
+      | "LOCKOUT"
+      | "OFFLINE"
+      | "OPEN"
+      | "BACKUP"
+      | "PARALLEL";
     activeFaults: number;
     lastFaultAt: string | null;
     deviceLastSeen: string | null;
@@ -84,9 +93,10 @@ export default function DashboardPage() {
         });
 
         setZones(sortedZones);
-
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An unknown error occurred");
+        setError(
+          err instanceof Error ? err.message : "An unknown error occurred"
+        );
       } finally {
         if (showLoading) {
           setIsLoading(false);
@@ -98,7 +108,9 @@ export default function DashboardPage() {
     fetchData(true);
 
     // Subsequent fetches without loading indicator (background refresh)
-    const interval = setInterval(() => fetchData(false), 500); // Refresh every 500ms (matches STM32 telemetry rate)
+    // For Vercel: 500ms is safest, but 200ms works if traffic is low
+    // For Azure App Service: 200ms is safe and provides real-time feel
+    const interval = setInterval(() => fetchData(false), 200); // Real-time updates (5 per second)
     return () => clearInterval(interval);
   }, []);
 
@@ -132,7 +144,9 @@ export default function DashboardPage() {
       setTimeout(() => setRestoreMessage(null), 5000);
     } catch (err) {
       setRestoreMessage(
-        `Error: ${err instanceof Error ? err.message : "Failed to restore relays"}`
+        `Error: ${
+          err instanceof Error ? err.message : "Failed to restore relays"
+        }`
       );
       setTimeout(() => setRestoreMessage(null), 5000);
     } finally {
@@ -183,7 +197,8 @@ export default function DashboardPage() {
           {restoreMessage && (
             <div
               className={`text-xs sm:text-sm px-3 py-2 rounded-md ${
-                restoreMessage.includes("Error") || restoreMessage.includes("already")
+                restoreMessage.includes("Error") ||
+                restoreMessage.includes("already")
                   ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
                   : "bg-green-500/20 text-green-300 border border-green-500/30"
               }`}
@@ -202,86 +217,105 @@ export default function DashboardPage() {
           const isCritical = statusConfig.severity === "error";
 
           return (
-          <Link
-            href={`/dashboard/zones/${zone.id}`}
-            key={zone.id}
-            className="cursor-pointer"
-          >
-            <Card
-              className={`bg-slate-800 border transition-all hover:border-blue-500 ${
-                isCritical
-                  ? "border-red-500/50"
-                  : statusConfig.severity === "warning"
-                  ? "border-amber-500/50"
-                  : "border-slate-700"
-              }`}
+            <Link
+              href={`/dashboard/zones/${zone.id}`}
+              key={zone.id}
+              className="cursor-pointer"
             >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm sm:text-md font-medium flex items-center text-white">
-                  {isHealthy ? (
-                    <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-green-400 flex-shrink-0" />
-                  ) : (
-                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" style={{ color: statusConfig.color }} />
-                  )}
-                  <span className="break-words">{zone.data.label}</span>
-                </CardTitle>
-                <Badge
-                  variant={isCritical ? "destructive" : "default"}
-                  className={`text-xs flex-shrink-0`}
-                  style={{
-                    backgroundColor: statusConfig.bgColor,
-                    color: statusConfig.color,
-                    borderColor: statusConfig.borderColor,
-                    border: '1px solid'
-                  }}
-                >
-                  {statusConfig.icon} {zone.data.status}
-                </Badge>
-              </CardHeader>
-              <CardContent>
-                 <div className="text-xs sm:text-sm text-slate-400 pt-3 sm:pt-4 space-y-2">
-                    <p className="hidden sm:block">Click to view detailed voltage, current, and history.</p>
+              <Card
+                className={`bg-slate-800 border transition-all hover:border-blue-500 ${
+                  isCritical
+                    ? "border-red-500/50"
+                    : statusConfig.severity === "warning"
+                    ? "border-amber-500/50"
+                    : "border-slate-700"
+                }`}
+              >
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm sm:text-md font-medium flex items-center text-white">
+                    {isHealthy ? (
+                      <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-green-400 flex-shrink-0" />
+                    ) : (
+                      <AlertTriangle
+                        className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0"
+                        style={{ color: statusConfig.color }}
+                      />
+                    )}
+                    <span className="break-words">{zone.data.label}</span>
+                  </CardTitle>
+                  <Badge
+                    variant={isCritical ? "destructive" : "default"}
+                    className={`text-xs flex-shrink-0`}
+                    style={{
+                      backgroundColor: statusConfig.bgColor,
+                      color: statusConfig.color,
+                      borderColor: statusConfig.borderColor,
+                      border: "1px solid",
+                    }}
+                  >
+                    {statusConfig.icon} {zone.data.status}
+                  </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-xs sm:text-sm text-slate-400 pt-3 sm:pt-4 space-y-2">
+                    <p className="hidden sm:block">
+                      Click to view detailed voltage, current, and history.
+                    </p>
                     <p className="sm:hidden">Tap for details</p>
                     {zone.data.activeFaults > 0 ? (
                       <span className="flex items-center text-red-400">
                         <AlertTriangle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm">{zone.data.activeFaults} active fault{zone.data.activeFaults > 1 ? "s" : ""}</span>
+                        <span className="text-xs sm:text-sm">
+                          {zone.data.activeFaults} active fault
+                          {zone.data.activeFaults > 1 ? "s" : ""}
+                        </span>
                       </span>
                     ) : (
                       <span className="flex items-center text-slate-500">
                         <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm">No active faults</span>
+                        <span className="text-xs sm:text-sm">
+                          No active faults
+                        </span>
                       </span>
                     )}
                     {zone.data.lastFaultAt && (
                       <span className="flex items-center text-slate-500">
                         <Clock3 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm">Last fault: {new Date(zone.data.lastFaultAt).toLocaleString()}</span>
+                        <span className="text-xs sm:text-sm">
+                          Last fault:{" "}
+                          {new Date(zone.data.lastFaultAt).toLocaleString()}
+                        </span>
                       </span>
                     )}
                     {zone.data.deviceLastSeen && (
                       <span className="flex items-center text-slate-500">
                         <Loader className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
-                        <span className="text-xs sm:text-sm">Device: {new Date(zone.data.deviceLastSeen).toLocaleTimeString()}</span>
+                        <span className="text-xs sm:text-sm">
+                          Device:{" "}
+                          {new Date(
+                            zone.data.deviceLastSeen
+                          ).toLocaleTimeString()}
+                        </span>
                       </span>
                     )}
-                 </div>
-              </CardContent>
-            </Card>
-          </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           );
         })}
       </div>
 
       <div className="text-white">
         <h3 className="text-xl sm:text-2xl font-bold flex items-center mb-3 sm:mb-4">
-          <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" /> System Overview
+          <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />{" "}
+          System Overview
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
           <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
             <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 mb-1 sm:mb-2" />
             <p className="text-2xl sm:text-3xl font-bold text-white">
-              {stats?.totalZones ?? 'N/A'}
+              {stats?.totalZones ?? "N/A"}
             </p>
             <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
               Total Zones
@@ -289,21 +323,27 @@ export default function DashboardPage() {
           </Card>
           <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
             <AlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 mb-1 sm:mb-2" />
-            <p className="text-2xl sm:text-3xl font-bold text-white">{stats?.activeFaults ?? 'N/A'}</p>
+            <p className="text-2xl sm:text-3xl font-bold text-white">
+              {stats?.activeFaults ?? "N/A"}
+            </p>
             <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
               Active Faults
             </p>
           </Card>
           <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
             <Waves className="w-6 h-6 sm:w-8 sm:h-8 text-sky-500 mb-1 sm:mb-2" />
-            <p className="text-base sm:text-xl font-bold text-white break-words">{stats?.systemStatus ?? 'N/A'}</p>
+            <p className="text-base sm:text-xl font-bold text-white break-words">
+              {stats?.systemStatus ?? "N/A"}
+            </p>
             <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
               System Status
             </p>
           </Card>
           <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
             <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 mb-1 sm:mb-2" />
-            <p className="text-base sm:text-xl font-bold text-white whitespace-nowrap">Real-Time</p>
+            <p className="text-base sm:text-xl font-bold text-white whitespace-nowrap">
+              Real-Time
+            </p>
             <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
               Monitoring
             </p>

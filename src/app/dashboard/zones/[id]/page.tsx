@@ -142,7 +142,9 @@ export default function ZoneDetailPage() {
     fetchData();
 
     // Subsequent fetches without loading indicator (background refresh)
-    const intervalId = window.setInterval(fetchData, 500); // Refresh every 500ms (matches STM32 telemetry rate)
+    // For Vercel: 500ms is safest, but 200ms works if traffic is low
+    // For Azure App Service: 200ms is safe and provides real-time feel
+    const intervalId = window.setInterval(fetchData, 200); // Real-time updates (5 per second)
 
     return () => {
       isActive = false;

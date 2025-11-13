@@ -26,12 +26,20 @@ interface LogEvent {
 // Helper to determine badge color based on event type
 const getBadgeForEvent = (eventType: string) => {
   switch (eventType.toUpperCase()) {
-    case 'FAULT':
+    case "FAULT":
       return <Badge variant="destructive">{eventType}</Badge>;
-    case 'SERVICE_RESTORATION':
-      return <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">{eventType}</Badge>;
-    case 'NORMAL':
-      return <Badge className="bg-green-500/20 text-green-300 border-green-500/30">{eventType}</Badge>;
+    case "SERVICE_RESTORATION":
+      return (
+        <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30">
+          {eventType}
+        </Badge>
+      );
+    case "NORMAL":
+      return (
+        <Badge className="bg-green-500/20 text-green-300 border-green-500/30">
+          {eventType}
+        </Badge>
+      );
     default:
       return <Badge variant="secondary">{eventType}</Badge>;
   }
@@ -49,7 +57,7 @@ export default function LogsPage() {
     }
     try {
       const response = await fetch("/api/logs", {
-        cache: 'no-store',
+        cache: "no-store",
       });
 
       if (!response.ok) {
@@ -60,7 +68,9 @@ export default function LogsPage() {
       setLogs(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "An unknown error occurred");
+      setError(
+        err instanceof Error ? err.message : "An unknown error occurred"
+      );
     } finally {
       if (showLoading) {
         setIsLoading(false);
@@ -73,9 +83,11 @@ export default function LogsPage() {
     fetchLogs(true);
 
     // Subsequent fetches without loading indicator (background refresh)
+    // For Vercel: 500ms is safest, but 200ms works if traffic is low
+    // For Azure App Service: 200ms is safe and provides real-time feel
     const interval = setInterval(() => {
       fetchLogs(false);
-    }, 500); // Auto-refresh logs every 500ms (matches STM32 telemetry rate)
+    }, 200); // Real-time updates (5 per second)
 
     return () => clearInterval(interval);
   }, []);
@@ -102,11 +114,21 @@ export default function LogsPage() {
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-slate-700/50 border-b-slate-700">
-                <TableHead className="text-white text-xs sm:text-sm">Timestamp</TableHead>
-                <TableHead className="text-white text-xs sm:text-sm">Zone</TableHead>
-                <TableHead className="text-white text-xs sm:text-sm">Event Type</TableHead>
-                <TableHead className="text-white text-xs sm:text-sm min-w-[200px]">Description</TableHead>
-                <TableHead className="text-white text-xs sm:text-sm">Status</TableHead>
+                <TableHead className="text-white text-xs sm:text-sm">
+                  Timestamp
+                </TableHead>
+                <TableHead className="text-white text-xs sm:text-sm">
+                  Zone
+                </TableHead>
+                <TableHead className="text-white text-xs sm:text-sm">
+                  Event Type
+                </TableHead>
+                <TableHead className="text-white text-xs sm:text-sm min-w-[200px]">
+                  Description
+                </TableHead>
+                <TableHead className="text-white text-xs sm:text-sm">
+                  Status
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -119,8 +141,12 @@ export default function LogsPage() {
                     <TableCell className="text-slate-300 text-xs sm:text-sm whitespace-nowrap">
                       {new Date(log.timestamp).toLocaleString()}
                     </TableCell>
-                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">{log.zone_name || 'System'}</TableCell>
-                    <TableCell className="text-xs sm:text-sm">{getBadgeForEvent(log.event_type)}</TableCell>
+                    <TableCell className="text-xs sm:text-sm whitespace-nowrap">
+                      {log.zone_name || "System"}
+                    </TableCell>
+                    <TableCell className="text-xs sm:text-sm">
+                      {getBadgeForEvent(log.event_type)}
+                    </TableCell>
                     <TableCell className="text-slate-400 text-xs sm:text-sm">
                       {log.description}
                     </TableCell>
@@ -143,7 +169,10 @@ export default function LogsPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-slate-400 py-8 text-sm">
+                  <TableCell
+                    colSpan={5}
+                    className="text-center text-slate-400 py-8 text-sm"
+                  >
                     No log events found.
                   </TableCell>
                 </TableRow>

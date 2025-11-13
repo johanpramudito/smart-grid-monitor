@@ -89,6 +89,9 @@ export async function POST() {
         });
         console.log(`[RESTORE-ALL] Command sent successfully to zone ${zone.feeder_number}`);
 
+        // Add delay to allow ESP32 to process the command before sending the next one
+        await new Promise(resolve => setTimeout(resolve, 300)); // 300ms delay
+
         // Update database relay status
         await client.query(
           `UPDATE "Relay"
