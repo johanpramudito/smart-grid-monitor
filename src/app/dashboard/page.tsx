@@ -15,13 +15,14 @@ import {
   Clock3,
   RotateCcw,
 } from "lucide-react";
+import { getStatusConfig } from "@/lib/utils/status";
 
 // Data structure for a single zone, fetched from the new /api/topology endpoint
 interface Zone {
   id: string;
   data: {
     label: string;
-    status: "NORMAL" | "FAULT" | "ISOLATED" | "OFFLINE";
+    status: "NORMAL" | "FAULT" | "TRIPPED" | "ISOLATED" | "LOCKOUT" | "OFFLINE" | "OPEN" | "BACKUP" | "PARALLEL";
     activeFaults: number;
     lastFaultAt: string | null;
     deviceLastSeen: string | null;
@@ -195,7 +196,12 @@ export default function DashboardPage() {
 
       {/* Zone status cards will be simplified as detailed V/A data is on the zone page */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-white">
-        {zones.map((zone) => (
+        {zones.map((zone) => {
+          const statusConfig = getStatusConfig(zone.data.status);
+          const isHealthy = statusConfig.severity === "normal";
+          const isCritical = statusConfig.severity === "error";
+
+          return (
           <Link
             href={`/dashboard/zones/${zone.id}`}
             key={zone.id}
@@ -203,29 +209,33 @@ export default function DashboardPage() {
           >
             <Card
               className={`bg-slate-800 border transition-all hover:border-blue-500 ${
-                zone.data.status === "FAULT"
+                isCritical
                   ? "border-red-500/50"
+                  : statusConfig.severity === "warning"
+                  ? "border-amber-500/50"
                   : "border-slate-700"
               }`}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm sm:text-md font-medium flex items-center text-white">
-                  {zone.data.status === "NORMAL" ? (
+                  {isHealthy ? (
                     <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-green-400 flex-shrink-0" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-red-400 flex-shrink-0" />
+                    <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 mr-2 flex-shrink-0" style={{ color: statusConfig.color }} />
                   )}
                   <span className="break-words">{zone.data.label}</span>
                 </CardTitle>
                 <Badge
-                  variant={zone.data.status === "FAULT" ? "destructive" : "default"}
-                  className={`text-xs flex-shrink-0 ${
-                    zone.data.status === "NORMAL"
-                      ? "bg-green-500/20 text-green-300 border-green-500/30"
-                      : ""
-                  }`}
+                  variant={isCritical ? "destructive" : "default"}
+                  className={`text-xs flex-shrink-0`}
+                  style={{
+                    backgroundColor: statusConfig.bgColor,
+                    color: statusConfig.color,
+                    borderColor: statusConfig.borderColor,
+                    border: '1px solid'
+                  }}
                 >
-                  {zone.data.status}
+                  {statusConfig.icon} {zone.data.status}
                 </Badge>
               </CardHeader>
               <CardContent>
@@ -259,7 +269,8 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </Link>
-        ))}
+          );
+        })}
       </div>
 
       <div className="text-white">
