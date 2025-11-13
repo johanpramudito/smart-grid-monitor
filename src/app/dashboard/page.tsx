@@ -98,7 +98,7 @@ export default function DashboardPage() {
     fetchData(true);
 
     // Subsequent fetches without loading indicator (background refresh)
-    const interval = setInterval(() => fetchData(false), 2000); // Refresh every 2 seconds
+    const interval = setInterval(() => fetchData(false), 500); // Refresh every 500ms (matches STM32 telemetry rate)
     return () => clearInterval(interval);
   }, []);
 

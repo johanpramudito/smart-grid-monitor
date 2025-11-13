@@ -75,7 +75,7 @@ export default function LogsPage() {
     // Subsequent fetches without loading indicator (background refresh)
     const interval = setInterval(() => {
       fetchLogs(false);
-    }, 2000); // Auto-refresh logs every 2 seconds
+    }, 500); // Auto-refresh logs every 500ms (matches STM32 telemetry rate)
 
     return () => clearInterval(interval);
   }, []);

@@ -142,7 +142,7 @@ export default function ZoneDetailPage() {
     fetchData();
 
     // Subsequent fetches without loading indicator (background refresh)
-    const intervalId = window.setInterval(fetchData, 2000); // Refresh every 2 seconds
+    const intervalId = window.setInterval(fetchData, 500); // Refresh every 500ms (matches STM32 telemetry rate)
 
     return () => {
       isActive = false;

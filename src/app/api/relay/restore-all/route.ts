@@ -21,9 +21,9 @@ export async function POST() {
         za.zone_agent_id,
         za.feeder_number,
         za.location_description,
-        da.device_key_id,
+        da.api_key_id,
         r.relay_id,
-        r.state as relay_state
+        r.status as relay_status
        FROM "ZoneAgent" za
        LEFT JOIN "DeviceAgent" da ON za.zone_agent_id = da.zone_agent_id
        LEFT JOIN "Relay" r ON za.zone_agent_id = r.zone_agent_id
@@ -40,8 +40,14 @@ export async function POST() {
 
     // Filter zones with OPEN relays (exclude tie relay by checking feeder_number is not null)
     const openRelays = zones.rows.filter(
-      (zone) => zone.relay_state === "OPEN" && zone.feeder_number !== null
+      (zone) => zone.relay_status === "OPEN" && zone.feeder_number !== null
     );
+
+    console.log(`[RESTORE-ALL] Found ${zones.rows.length} zones total`);
+    console.log(`[RESTORE-ALL] Found ${openRelays.length} zones with OPEN relays`);
+    openRelays.forEach(zone => {
+      console.log(`  - Zone ${zone.feeder_number} (${zone.zone_agent_id}): relay_status=${zone.relay_status}, api_key_id=${zone.api_key_id}`);
+    });
 
     if (openRelays.length === 0) {
       return NextResponse.json({
@@ -64,15 +70,16 @@ export async function POST() {
 
     for (const zone of openRelays) {
       try {
-        if (!zone.device_key_id) {
+        if (!zone.api_key_id) {
           errors.push({
             zoneId: zone.zone_agent_id,
-            error: "No device key configured",
+            error: "No API key configured",
           });
           continue;
         }
 
         // Publish MQTT command to close relay
+        console.log(`[RESTORE-ALL] Sending CLOSE command to zone ${zone.feeder_number} (${zone.zone_agent_id})`);
         await publishRelayCommand({
           zoneId: zone.zone_agent_id,
           relayNumber: 1, // always 1 for zone relays
@@ -80,11 +87,12 @@ export async function POST() {
           timestamp: new Date().toISOString(),
           source: "MANUAL",
         });
+        console.log(`[RESTORE-ALL] Command sent successfully to zone ${zone.feeder_number}`);
 
-        // Update database relay state
+        // Update database relay status
         await client.query(
           `UPDATE "Relay"
-           SET state = 'CLOSED', updated_at = NOW()
+           SET status = 'CLOSED'
            WHERE relay_id = $1`,
           [zone.relay_id]
         );
@@ -93,7 +101,7 @@ export async function POST() {
           zoneId: zone.zone_agent_id,
           feederNumber: zone.feeder_number,
           location: zone.location_description || `Zone ${zone.feeder_number}`,
-          deviceKeyId: zone.device_key_id,
+          deviceKeyId: zone.api_key_id,
         });
       } catch (err) {
         console.error(`Error closing relay for zone ${zone.zone_agent_id}:`, err);

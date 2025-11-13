@@ -361,7 +361,7 @@ export default function TopologyPage() {
     // Subsequent fetches without loading indicator (background refresh)
     const interval = setInterval(() => {
       fetchTopology(false);
-    }, 2000); // Refresh every 2 seconds (fast updates from STM32)
+    }, 500); // Refresh every 500ms (matches STM32 telemetry rate)
 
     return () => clearInterval(interval);
   }, [fetchTopology]);
