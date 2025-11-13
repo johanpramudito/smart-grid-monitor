@@ -1,12 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Poppins } from "next/font/google";
 import "./globals.css";
 
-const poppins = Poppins({
-  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
-  subsets: ["latin"],
+// Use system fonts as fallback (avoids Google Fonts network issues during build)
+const poppins = {
   variable: "--font-poppins",
-});
+  className: "",
+};
 
 export const metadata: Metadata = {
   title: {
