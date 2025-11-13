@@ -7,7 +7,7 @@ import {
   TieSwitch,
 } from './IECSymbols';
 
-export type ZoneStatus = 'NORMAL' | 'FAULT' | 'ISOLATED' | 'OFFLINE';
+export type ZoneStatus = 'NORMAL' | 'FAULT' | 'TRIPPED' | 'ISOLATED' | 'LOCKOUT' | 'OFFLINE' | 'OPEN' | 'BACKUP' | 'PARALLEL';
 
 export interface PowerSupplyNodeData {
   label: string;

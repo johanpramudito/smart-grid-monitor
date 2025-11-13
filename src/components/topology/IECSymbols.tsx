@@ -1,13 +1,39 @@
 import React from 'react';
 
+type ZoneStatus = 'NORMAL' | 'FAULT' | 'TRIPPED' | 'ISOLATED' | 'LOCKOUT' | 'OFFLINE' | 'OPEN' | 'BACKUP' | 'PARALLEL';
+
 interface IECSymbolProps {
-  status?: 'NORMAL' | 'FAULT' | 'ISOLATED' | 'OFFLINE';
+  status?: ZoneStatus;
   size?: number;
+}
+
+// Helper function to get color based on status
+function getStatusColor(status: ZoneStatus): string {
+  switch (status) {
+    case 'NORMAL':
+      return '#10b981'; // green-500
+    case 'FAULT':
+    case 'TRIPPED':
+      return '#ef4444'; // red-500
+    case 'LOCKOUT':
+      return '#7c3aed'; // violet-600
+    case 'ISOLATED':
+    case 'BACKUP':
+      return '#f59e0b'; // amber-500
+    case 'OFFLINE':
+      return '#6b7280'; // gray-500
+    case 'OPEN':
+      return '#94a3b8'; // slate-400
+    case 'PARALLEL':
+      return '#3b82f6'; // blue-500
+    default:
+      return '#10b981'; // default green
+  }
 }
 
 // IEC 60617 Voltage Source (AC Generator)
 export const VoltageSource: React.FC<IECSymbolProps> = ({ status = 'NORMAL', size = 60 }) => {
-  const color = status === 'FAULT' ? '#ef4444' : '#10b981';
+  const color = getStatusColor(status);
 
   return (
     <svg width={size} height={size} viewBox="0 0 60 60">
@@ -39,7 +65,7 @@ export const CircuitBreaker: React.FC<IECSymbolProps & { closed?: boolean }> = (
   size = 60,
   status = 'NORMAL'
 }) => {
-  const color = status === 'FAULT' ? '#ef4444' : '#10b981';
+  const color = getStatusColor(status);
 
   return (
     <svg width={size} height={size} viewBox="0 0 60 60">
@@ -75,7 +101,7 @@ export const CircuitBreaker: React.FC<IECSymbolProps & { closed?: boolean }> = (
 
 // IEC 60617 Current Transformer / Sensor
 export const CurrentSensor: React.FC<IECSymbolProps> = ({ status = 'NORMAL', size = 60 }) => {
-  const color = status === 'FAULT' ? '#ef4444' : '#10b981';
+  const color = getStatusColor(status);
 
   return (
     <svg width={size} height={size} viewBox="0 0 60 60">
@@ -121,7 +147,7 @@ export const CurrentSensor: React.FC<IECSymbolProps> = ({ status = 'NORMAL', siz
 
 // IEC 60617 Voltage Transformer / Sensor
 export const VoltageSensor: React.FC<IECSymbolProps> = ({ status = 'NORMAL', size = 60 }) => {
-  const color = status === 'FAULT' ? '#ef4444' : '#10b981';
+  const color = getStatusColor(status);
 
   return (
     <svg width={size} height={size} viewBox="0 0 60 60">
@@ -171,7 +197,7 @@ export const PowerMeter: React.FC<IECSymbolProps & { label?: string }> = ({
   size = 80,
   label
 }) => {
-  const color = status === 'FAULT' ? '#ef4444' : '#10b981';
+  const color = getStatusColor(status);
   const bgColor = status === 'FAULT' ? '#7f1d1d' : '#064e3b';
 
   return (
@@ -248,7 +274,7 @@ export const BusBar: React.FC<{
   status?: 'NORMAL' | 'FAULT' | 'ISOLATED' | 'OFFLINE';
   energized?: boolean;
 }> = ({ width = 200, status = 'NORMAL', energized = true }) => {
-  const color = status === 'FAULT' ? '#ef4444' : '#10b981';
+  const color = getStatusColor(status);
   const strokeWidth = status === 'FAULT' ? 6 : 4;
 
   return (
@@ -288,14 +314,13 @@ export const BusBar: React.FC<{
 // IEC 60617 Tie Switch (Normally Open)
 export const TieSwitch: React.FC<{
   closed?: boolean;
-  status?: 'NORMAL' | 'FAULT' | 'ISOLATED' | 'OFFLINE';
+  status?: ZoneStatus;
   size?: number;
 }> = ({ closed = false, status = 'NORMAL', size = 80 }) => {
-  const color = closed
-    ? (status === 'FAULT' ? '#ef4444' : '#22c55e')
-    : '#64748b';
+  const statusColor = getStatusColor(status);
+  const color = closed ? statusColor : '#64748b';
   const bgColor = closed
-    ? (status === 'FAULT' ? '#7f1d1d' : '#14532d')
+    ? (status === 'FAULT' || status === 'TRIPPED' || status === 'LOCKOUT' ? '#7f1d1d' : '#14532d')
     : '#1e293b';
 
   return (
