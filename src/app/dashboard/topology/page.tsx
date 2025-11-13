@@ -128,7 +128,7 @@ export default function TopologyPage() {
         const sensorId = `sensor-${zoneId}`;
         const relayId = `relay-${zoneId}`;
         const feederNum = zone.data.feederNumber ?? index + 1;
-        const status = zone.data.status;
+        const status: ZoneStatus = zone.data.status;
         const deviceOnline = isDeviceOnline(zone);
 
         // Determine if this zone has power based on upstream conditions and device status
@@ -163,7 +163,7 @@ export default function TopologyPage() {
           style: {
             stroke: connectionColor,
             strokeWidth: status === "FAULT" ? 5 : (isEnergized ? 3 : 2),
-            strokeDasharray: (!isEnergized || status === "OFFLINE" || !deviceOnline) ? "8 4" : "0",
+            strokeDasharray: (!isEnergized || !deviceOnline) ? "8 4" : "0",
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -206,7 +206,7 @@ export default function TopologyPage() {
           style: {
             stroke: connectionColor,
             strokeWidth: status === "FAULT" ? 5 : (isEnergized ? 3 : 2),
-            strokeDasharray: (!isEnergized || status === "OFFLINE" || !deviceOnline) ? "8 4" : "0",
+            strokeDasharray: (!isEnergized || !deviceOnline) ? "8 4" : "0",
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
@@ -215,7 +215,7 @@ export default function TopologyPage() {
         });
 
         // Update tracking: if this relay is OPEN or device offline, all downstream connections should be de-energized (gray)
-        if (status === "FAULT" || status === "ISOLATED" || status === "OFFLINE" || !deviceOnline) {
+        if (status === "FAULT" || status === "ISOLATED" || !deviceOnline) {
           anyPreviousRelayOpen = true;
         }
 
