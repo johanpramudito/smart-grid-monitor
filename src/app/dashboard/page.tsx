@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   AlertTriangle,
   CheckCircle,
@@ -12,6 +13,7 @@ import {
   SlidersHorizontal,
   Loader,
   Clock3,
+  RotateCcw,
 } from "lucide-react";
 
 // Data structure for a single zone, fetched from the new /api/topology endpoint
@@ -41,9 +43,14 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchData() {
+    async function fetchData(showLoading = false) {
+      if (showLoading) {
+        setIsLoading(true);
+      }
       try {
         setError(null);
         // Fetch both stats and zone details in parallel
@@ -80,15 +87,57 @@ export default function DashboardPage() {
       } catch (err) {
         setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
-        setIsLoading(false);
+        if (showLoading) {
+          setIsLoading(false);
+        }
       }
     }
 
-    fetchData();
-    // Optional: Set up a polling interval to refresh data periodically
-    const interval = setInterval(fetchData, 10000); // Refresh every 10 seconds
+    // Initial fetch with loading indicator
+    fetchData(true);
+
+    // Subsequent fetches without loading indicator (background refresh)
+    const interval = setInterval(() => fetchData(false), 2000); // Refresh every 2 seconds
     return () => clearInterval(interval);
   }, []);
+
+  // Handle restore all open relays
+  async function handleRestoreAll() {
+    setIsRestoring(true);
+    setRestoreMessage(null);
+    try {
+      const response = await fetch("/api/relay/restore-all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to restore relays");
+      }
+
+      const result = await response.json();
+
+      if (result.relaysClosed === 0) {
+        setRestoreMessage("All feeder relays are already closed");
+      } else {
+        setRestoreMessage(
+          `✓ Successfully closed ${result.relaysClosed} relay(s): ${result.zones
+            .map((z: { location: string }) => z.location)
+            .join(", ")}`
+        );
+      }
+
+      // Clear message after 5 seconds
+      setTimeout(() => setRestoreMessage(null), 5000);
+    } catch (err) {
+      setRestoreMessage(
+        `Error: ${err instanceof Error ? err.message : "Failed to restore relays"}`
+      );
+      setTimeout(() => setRestoreMessage(null), 5000);
+    } finally {
+      setIsRestoring(false);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -105,11 +154,43 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
-      <div>
-        <h2 className="text-2xl sm:text-3xl font-bold">Energy Monitor</h2>
-        <p className="text-sm sm:text-base text-slate-400">
-          Real-time monitoring of smart grid zones
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-bold">Energy Monitor</h2>
+          <p className="text-sm sm:text-base text-slate-400">
+            Real-time monitoring of smart grid zones
+          </p>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Button
+            onClick={handleRestoreAll}
+            disabled={isRestoring}
+            className="bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {isRestoring ? (
+              <>
+                <Loader className="w-4 h-4 animate-spin" />
+                Restoring...
+              </>
+            ) : (
+              <>
+                <RotateCcw className="w-4 h-4" />
+                Restore All Open Relays
+              </>
+            )}
+          </Button>
+          {restoreMessage && (
+            <div
+              className={`text-xs sm:text-sm px-3 py-2 rounded-md ${
+                restoreMessage.includes("Error") || restoreMessage.includes("already")
+                  ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30"
+                  : "bg-green-500/20 text-green-300 border border-green-500/30"
+              }`}
+            >
+              {restoreMessage}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Zone status cards will be simplified as detailed V/A data is on the zone page */}

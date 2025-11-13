@@ -4,8 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:mqtt": "cross-env NODE_ENV=development ENABLE_MQTT_SUBSCRIBER=true node server.js",
     "build": "next build",
     "start": "next start",
+    "start:azure": "cross-env NODE_ENV=production node server.js",
     "lint": "eslint"
   },
   "dependencies": {
@@ -36,6 +38,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
     "tailwindcss": "^4",

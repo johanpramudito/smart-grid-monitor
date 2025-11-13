@@ -24,7 +24,7 @@ export interface RelayNodeData {
   label: string;
   status: ZoneStatus;
   feederNumber: number;
-  state: 'OPEN' | 'CLOSED';
+  state: 'OPEN' | 'CLOSED' | 'UNKNOWN';
 }
 
 export interface TieRelayNodeData {
