@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "dev:mqtt": "cross-env NODE_ENV=development ENABLE_MQTT_SUBSCRIBER=true node server.js",
+    "mqtt:init": "node scripts/init-mqtt.js",
     "build": "next build",
     "start": "next start",
     "start:azure": "cross-env NODE_ENV=production node server.js",

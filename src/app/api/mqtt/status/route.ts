@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { isMqttListenerActive } from '@/lib/mqtt/telemetry-listener';
+import { isMqttListenerActive, getMqttListenerStatus } from '@/lib/mqtt/telemetry-listener';
 
 /**
  * GET /api/mqtt/status
@@ -10,11 +10,24 @@ import { isMqttListenerActive } from '@/lib/mqtt/telemetry-listener';
 export async function GET() {
   const active = isMqttListenerActive();
   const status = active ? 'connected' : 'disconnected';
+  const details = getMqttListenerStatus();
 
   return NextResponse.json({
     mqtt_listener: status,
     active,
     timestamp: new Date().toISOString(),
-    runtime: process.env.NEXT_RUNTIME || 'unknown',
+    runtime: process.env.NEXT_RUNTIME || 'nodejs',
+    details: {
+      ...details,
+      environmentVars: {
+        MQTT_BROKER_URL: process.env.MQTT_BROKER_URL ? 'set' : 'missing',
+        MQTT_USERNAME: process.env.MQTT_USERNAME ? 'set' : 'missing',
+        MQTT_PASSWORD: process.env.MQTT_PASSWORD ? 'set' : 'missing',
+        DEVICE_AC1B15FC_API_KEY: process.env.DEVICE_AC1B15FC_API_KEY ? 'set' : 'missing',
+        DEVICE_70F460BD_API_KEY: process.env.DEVICE_70F460BD_API_KEY ? 'set' : 'missing',
+        DEVICE_DF8F6261_API_KEY: process.env.DEVICE_DF8F6261_API_KEY ? 'set' : 'missing',
+        DEVICE_68A3FD30_API_KEY: process.env.DEVICE_68A3FD30_API_KEY ? 'set' : 'missing',
+      }
+    },
   });
 }

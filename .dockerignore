@@ -1,0 +1,54 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Next.js
+.next
+out
+
+# Environment
+.env
+.env.local
+.env.production.local
+.env.development.local
+.env.test.local
+.env.azure
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Deployment
+deploy-*.zip
+*.zip
+
+# Documentation
+README.md
+docs/
+DEPLOYMENT.md
+AZURE-QUICK-START.md
+
+# Scripts
+*.ps1
+*.sh
+gateway.py
+gateway_optimized.py
+
+# Arduino
+arduino/
+
+# Temporary
+*.tmp
+*.temp

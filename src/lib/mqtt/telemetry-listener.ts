@@ -195,3 +195,16 @@ export function stopMqttTelemetryListener(): void {
 export function isMqttListenerActive(): boolean {
   return isListening;
 }
+
+/**
+ * Get detailed MQTT listener status for diagnostics
+ */
+export function getMqttListenerStatus() {
+  return {
+    isListening,
+    hasClient: mqttListener !== null,
+    isConnected: mqttListener?.connected || false,
+    brokerUrl: MQTT_CONFIG.brokerUrl,
+    clientId: MQTT_CONFIG.clientId,
+  };
+}
