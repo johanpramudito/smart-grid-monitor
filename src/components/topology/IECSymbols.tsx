@@ -314,14 +314,13 @@ export const BusBar: React.FC<{
 // IEC 60617 Tie Switch (Normally Open)
 export const TieSwitch: React.FC<{
   closed?: boolean;
-  status?: 'NORMAL' | 'FAULT' | 'ISOLATED' | 'OFFLINE';
+  status?: ZoneStatus;
   size?: number;
 }> = ({ closed = false, status = 'NORMAL', size = 80 }) => {
-  const color = closed
-    ? (status === 'FAULT' ? '#ef4444' : '#22c55e')
-    : '#64748b';
+  const statusColor = getStatusColor(status);
+  const color = closed ? statusColor : '#64748b';
   const bgColor = closed
-    ? (status === 'FAULT' ? '#7f1d1d' : '#14532d')
+    ? (status === 'FAULT' || status === 'TRIPPED' || status === 'LOCKOUT' ? '#7f1d1d' : '#14532d')
     : '#1e293b';
 
   return (
