@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "*.clp": "clips",
+        "ostream": "cpp"
+    }
+}
