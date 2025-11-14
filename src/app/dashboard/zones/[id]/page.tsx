@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -218,10 +218,13 @@ export default function ZoneDetailPage() {
   const isManualMode = details.status === "MANUAL";
   const isManualOverride = details.manual_override === true;
 
-  const formattedHistory = history.map(h => ({
+  const formattedHistory = useMemo(() =>
+    history.map(h => ({
       ...h,
       time: new Date(h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  }));
+    })),
+    [history]
+  );
 
   // FLISR logic for tie relay
   const anyZoneFaulted = allZones?.zones.some(z => z.status === 'FAULT') ?? false;
@@ -397,7 +400,7 @@ export default function ZoneDetailPage() {
                       <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
                       <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 250]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                      <Line type="monotone" dataKey="voltage" stroke="#38BDF8" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="voltage" stroke="#38BDF8" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -413,7 +416,7 @@ export default function ZoneDetailPage() {
                       <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
                       <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 6]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                      <Line type="monotone" dataKey="current" stroke="#FBBF24" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="current" stroke="#FBBF24" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -431,7 +434,7 @@ export default function ZoneDetailPage() {
                       <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
                       <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1500]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                      <Line type="monotone" dataKey="power" stroke="#10B981" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="power" stroke="#10B981" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -449,7 +452,7 @@ export default function ZoneDetailPage() {
                       <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
                       <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                      <Line type="monotone" dataKey="power_factor" stroke="#8B5CF6" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="power_factor" stroke="#8B5CF6" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -467,7 +470,7 @@ export default function ZoneDetailPage() {
                       <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
                       <YAxis stroke="#94A3B8" fontSize={12} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                      <Line type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -485,7 +488,7 @@ export default function ZoneDetailPage() {
                       <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
                       <YAxis stroke="#94A3B8" fontSize={12} domain={[49, 51]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
-                      <Line type="monotone" dataKey="frequency" stroke="#EC4899" strokeWidth={2} dot={false} />
+                      <Line type="monotone" dataKey="frequency" stroke="#EC4899" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
