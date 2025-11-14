@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -218,13 +218,10 @@ export default function ZoneDetailPage() {
   const isManualMode = details.status === "MANUAL";
   const isManualOverride = details.manual_override === true;
 
-  const formattedHistory = useMemo(() =>
-    history.map(h => ({
+  const formattedHistory = history.map(h => ({
       ...h,
       time: new Date(h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    })),
-    [history]
-  );
+  }));
 
   // FLISR logic for tie relay
   const anyZoneFaulted = allZones?.zones.some(z => z.status === 'FAULT') ?? false;
