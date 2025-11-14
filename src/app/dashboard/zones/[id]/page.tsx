@@ -142,9 +142,8 @@ export default function ZoneDetailPage() {
     fetchData();
 
     // Subsequent fetches without loading indicator (background refresh)
-    // For Vercel: 500ms is safest, but 200ms works if traffic is low
-    // For Azure App Service: 200ms is safe and provides real-time feel
-    const intervalId = window.setInterval(fetchData, 200); // Real-time updates (5 per second)
+    // 800ms provides smooth real-time updates while reducing database load
+    const intervalId = window.setInterval(fetchData, 800); // Updates every 800ms
 
     return () => {
       isActive = false;
