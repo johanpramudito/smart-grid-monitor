@@ -3,6 +3,10 @@
    *
    * Provides a singleton MQTT client for publishing relay control commands
    * to IoT devices (STM32 + ESP-01) in the smart grid system.
+   *
+   * DEPLOYMENT MODES:
+   * - Direct MQTT: Works on local dev and persistent servers (Railway, Render, Azure)
+   * - HTTP Bridge: Works on Vercel (serverless) by calling an MQTT bridge service
    */
 
   import mqtt, { MqttClient, IClientOptions } from 'mqtt';
@@ -17,7 +21,20 @@
     username: process.env.MQTT_USERNAME || '',
     password: process.env.MQTT_PASSWORD || '',
     clientId: process.env.MQTT_CLIENT_ID || `smart-grid-server-${Math.random().toString(16).substr(2, 8)}`,
+    // HTTP Bridge URL for serverless deployments (Vercel)
+    // If set, will use HTTP API instead of direct MQTT connection
+    bridgeUrl: process.env.MQTT_BRIDGE_URL || '',
   };
+
+  /**
+   * Check if running on Vercel (serverless environment)
+   */
+  const isVercel = process.env.VERCEL === '1';
+
+  /**
+   * Determine if we should use HTTP bridge mode
+   */
+  const useHttpBridge = isVercel || !!MQTT_CONFIG.bridgeUrl;
 
   /**
    * Get or create the MQTT client singleton
@@ -100,6 +117,39 @@
   };
 
   /**
+   * Publish via HTTP bridge (for Vercel/serverless)
+   */
+  async function publishViaHttpBridge(topic: string, message: string): Promise<void> {
+    if (!MQTT_CONFIG.bridgeUrl) {
+      throw new Error(
+        'MQTT_BRIDGE_URL environment variable is not set. ' +
+        'Please deploy mqtt-bridge-service and set the URL.'
+      );
+    }
+
+    const response = await fetch(`${MQTT_CONFIG.bridgeUrl}/publish`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        topic,
+        message,
+        qos: 1,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(`HTTP Bridge error: ${error.error || 'Unknown error'}`);
+    }
+
+    const result = await response.json();
+    console.log(`[MQTT-HTTP] Published to ${topic}:`, message);
+    return result;
+  }
+
+  /**
    * Publish a relay control command to the MQTT broker
    * Publishes to the specific device mapped to the zone
    *
@@ -109,8 +159,6 @@
   export async function publishRelayCommand(
     payload: RelayCommandPayload
   ): Promise<void> {
-    const client = getMqttClient();
-
     // Get device key ID for this zone
     const deviceKeyId = ZONE_TO_DEVICE_MAP[payload.zoneId];
 
@@ -130,6 +178,15 @@
       relay: payload.relayNumber,
       state: payload.command, // CLOSED, OPEN, ON, OFF, AUTO
     });
+
+    // Use HTTP bridge if in serverless environment, otherwise use direct MQTT
+    if (useHttpBridge) {
+      console.log(`[MQTT-HTTP] Using HTTP bridge mode (Vercel detected)`);
+      return publishViaHttpBridge(topic, message);
+    }
+
+    // Direct MQTT connection (traditional server)
+    const client = getMqttClient();
 
     return new Promise((resolve, reject) => {
       client.publish(topic, message, { qos: 1, retain: false }, (error) => {
