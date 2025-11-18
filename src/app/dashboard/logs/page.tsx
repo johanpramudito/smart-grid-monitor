@@ -386,7 +386,7 @@ export default function LogsPage() {
               Page {currentPage} of {totalPages}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap justify-center">
               <Button
                 variant="outline"
                 size="sm"
@@ -395,10 +395,10 @@ export default function LogsPage() {
                 className="flex items-center gap-1"
               >
                 <ChevronLeft className="w-4 h-4" />
-                Previous
+                <span className="hidden sm:inline">Previous</span>
               </Button>
 
-              <div className="flex gap-1">
+              <div className="flex gap-1 overflow-x-auto max-w-[200px] sm:max-w-none scrollbar-hide">
                 {getPageNumbers().map((page, index) => (
                   <Button
                     key={index}
@@ -406,7 +406,7 @@ export default function LogsPage() {
                     size="sm"
                     onClick={() => typeof page === "number" && goToPage(page)}
                     disabled={page === "..."}
-                    className="w-10"
+                    className="w-8 h-8 sm:w-10 sm:h-10 p-0 flex-shrink-0"
                   >
                     {page}
                   </Button>
@@ -420,7 +420,7 @@ export default function LogsPage() {
                 disabled={currentPage === totalPages}
                 className="flex items-center gap-1"
               >
-                Next
+                <span className="hidden sm:inline">Next</span>
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
