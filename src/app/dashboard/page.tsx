@@ -172,7 +172,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl sm:text-3xl font-bold">Energy Monitor</h2>
-          <p className="text-sm sm:text-base text-slate-400">
+          <p className="text-sm sm:text-base text-muted-foreground">
             Real-time monitoring of smart grid zones
           </p>
         </div>
@@ -210,7 +210,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Zone status cards will be simplified as detailed V/A data is on the zone page */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 text-white">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
         {zones.map((zone) => {
           const statusConfig = getStatusConfig(zone.data.status);
           const isHealthy = statusConfig.severity === "normal";
@@ -223,16 +223,16 @@ export default function DashboardPage() {
               className="cursor-pointer"
             >
               <Card
-                className={`bg-slate-800 border transition-all hover:border-blue-500 ${
+                className={`transition-all hover:border-primary ${
                   isCritical
                     ? "border-red-500/50"
                     : statusConfig.severity === "warning"
                     ? "border-amber-500/50"
-                    : "border-slate-700"
+                    : ""
                 }`}
               >
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm sm:text-md font-medium flex items-center text-white">
+                  <CardTitle className="text-sm sm:text-md font-medium flex items-center">
                     {isHealthy ? (
                       <Zap className="w-4 h-4 sm:w-5 sm:h-5 mr-2 text-green-400 flex-shrink-0" />
                     ) : (
@@ -257,7 +257,7 @@ export default function DashboardPage() {
                   </Badge>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-xs sm:text-sm text-slate-400 pt-3 sm:pt-4 space-y-2">
+                  <div className="text-xs sm:text-sm text-muted-foreground pt-3 sm:pt-4 space-y-2">
                     <p className="hidden sm:block">
                       Click to view detailed voltage, current, and history.
                     </p>
@@ -271,7 +271,7 @@ export default function DashboardPage() {
                         </span>
                       </span>
                     ) : (
-                      <span className="flex items-center text-slate-500">
+                      <span className="flex items-center text-muted-foreground">
                         <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                         <span className="text-xs sm:text-sm">
                           No active faults
@@ -279,7 +279,7 @@ export default function DashboardPage() {
                       </span>
                     )}
                     {zone.data.lastFaultAt && (
-                      <span className="flex items-center text-slate-500">
+                      <span className="flex items-center text-muted-foreground">
                         <Clock3 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                         <span className="text-xs sm:text-sm">
                           Last fault:{" "}
@@ -288,7 +288,7 @@ export default function DashboardPage() {
                       </span>
                     )}
                     {zone.data.deviceLastSeen && (
-                      <span className="flex items-center text-slate-500">
+                      <span className="flex items-center text-muted-foreground">
                         <Loader className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
                         <span className="text-xs sm:text-sm">
                           Device:{" "}
@@ -306,45 +306,45 @@ export default function DashboardPage() {
         })}
       </div>
 
-      <div className="text-white">
+      <div>
         <h3 className="text-xl sm:text-2xl font-bold flex items-center mb-3 sm:mb-4">
           <SlidersHorizontal className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3" />{" "}
           System Overview
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
-          <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
+          <Card className="p-3 sm:p-4 flex flex-col items-center justify-center text-center">
             <CheckCircle className="w-6 h-6 sm:w-8 sm:h-8 text-green-500 mb-1 sm:mb-2" />
-            <p className="text-2xl sm:text-3xl font-bold text-white">
+            <p className="text-2xl sm:text-3xl font-bold">
               {stats?.totalZones ?? "N/A"}
             </p>
-            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">
               Total Zones
             </p>
           </Card>
-          <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
+          <Card className="p-3 sm:p-4 flex flex-col items-center justify-center text-center">
             <AlertTriangle className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 mb-1 sm:mb-2" />
-            <p className="text-2xl sm:text-3xl font-bold text-white">
+            <p className="text-2xl sm:text-3xl font-bold">
               {stats?.activeFaults ?? "N/A"}
             </p>
-            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">
               Active Faults
             </p>
           </Card>
-          <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
+          <Card className="p-3 sm:p-4 flex flex-col items-center justify-center text-center">
             <Waves className="w-6 h-6 sm:w-8 sm:h-8 text-sky-500 mb-1 sm:mb-2" />
-            <p className="text-base sm:text-xl font-bold text-white break-words">
+            <p className="text-base sm:text-xl font-bold break-words">
               {stats?.systemStatus ?? "N/A"}
             </p>
-            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">
               System Status
             </p>
           </Card>
-          <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 flex flex-col items-center justify-center text-center">
+          <Card className="p-3 sm:p-4 flex flex-col items-center justify-center text-center">
             <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500 mb-1 sm:mb-2" />
-            <p className="text-base sm:text-xl font-bold text-white whitespace-nowrap">
+            <p className="text-base sm:text-xl font-bold whitespace-nowrap">
               Real-Time
             </p>
-            <p className="text-[10px] sm:text-xs text-slate-400 uppercase tracking-wider">
+            <p className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">
               Monitoring
             </p>
           </Card>

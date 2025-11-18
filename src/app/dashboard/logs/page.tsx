@@ -104,29 +104,29 @@ export default function LogsPage() {
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div>
         <h2 className="text-2xl sm:text-3xl font-bold">Log & History</h2>
-        <p className="text-sm sm:text-base text-slate-400">
+        <p className="text-sm sm:text-base text-muted-foreground">
           A record of all system events and automated actions.
         </p>
       </div>
 
-      <Card className="bg-slate-800 border-slate-700 p-3 sm:p-4 lg:p-6 space-y-4">
-        <div className="border rounded-lg border-slate-700 overflow-x-auto">
+      <Card className="bg-card border-border p-3 sm:p-4 lg:p-6 space-y-4">
+        <div className="border rounded-lg border-border overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="hover:bg-slate-700/50 border-b-slate-700">
-                <TableHead className="text-white text-xs sm:text-sm">
+              <TableRow className="hover:bg-accent/50 border-b-slate-700">
+                <TableHead className="text-foreground text-xs sm:text-sm">
                   Timestamp
                 </TableHead>
-                <TableHead className="text-white text-xs sm:text-sm">
+                <TableHead className="text-foreground text-xs sm:text-sm">
                   Zone
                 </TableHead>
-                <TableHead className="text-white text-xs sm:text-sm">
+                <TableHead className="text-foreground text-xs sm:text-sm">
                   Event Type
                 </TableHead>
-                <TableHead className="text-white text-xs sm:text-sm min-w-[200px]">
+                <TableHead className="text-foreground text-xs sm:text-sm min-w-[200px]">
                   Description
                 </TableHead>
-                <TableHead className="text-white text-xs sm:text-sm">
+                <TableHead className="text-foreground text-xs sm:text-sm">
                   Status
                 </TableHead>
               </TableRow>
@@ -136,9 +136,9 @@ export default function LogsPage() {
                 logs.map((log) => (
                   <TableRow
                     key={log.event_id}
-                    className="border-t-slate-700 hover:bg-slate-700/30"
+                    className="border-t-border hover:bg-accent/30"
                   >
-                    <TableCell className="text-slate-300 text-xs sm:text-sm whitespace-nowrap">
+                    <TableCell className="text-foreground text-xs sm:text-sm whitespace-nowrap">
                       {new Date(log.timestamp).toLocaleString()}
                     </TableCell>
                     <TableCell className="text-xs sm:text-sm whitespace-nowrap">
@@ -147,7 +147,7 @@ export default function LogsPage() {
                     <TableCell className="text-xs sm:text-sm">
                       {getBadgeForEvent(log.event_type)}
                     </TableCell>
-                    <TableCell className="text-slate-400 text-xs sm:text-sm">
+                    <TableCell className="text-muted-foreground text-xs sm:text-sm">
                       {log.description}
                     </TableCell>
                     <TableCell className="text-xs sm:text-sm whitespace-nowrap">
@@ -171,7 +171,7 @@ export default function LogsPage() {
                 <TableRow>
                   <TableCell
                     colSpan={5}
-                    className="text-center text-slate-400 py-8 text-sm"
+                    className="text-center text-muted-foreground py-8 text-sm"
                   >
                     No log events found.
                   </TableCell>

@@ -224,10 +224,10 @@ export function NotificationCenter() {
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button
-          className="relative p-2 rounded-full hover:bg-slate-700 flex-shrink-0 transition-colors"
+          className="relative p-2 rounded-full hover:bg-accent flex-shrink-0 transition-colors"
           aria-label="Notifications"
         >
-          <Bell className="w-6 h-6 text-slate-300" />
+          <Bell className="w-6 h-6 text-muted-foreground" />
           {unreadCount > 0 && (
             <>
               <span className="absolute top-2 right-2 flex h-2 w-2">
@@ -242,15 +242,15 @@ export function NotificationCenter() {
         </button>
       </PopoverTrigger>
       <PopoverContent
-        className="w-80 sm:w-96 bg-slate-800 border-slate-700 text-white p-0 max-h-[80vh] overflow-hidden flex flex-col"
+        className="w-80 sm:w-96 p-0 max-h-[80vh] overflow-hidden flex flex-col"
         align="end"
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-slate-700">
+        <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="text-lg font-semibold">Notifications</h3>
           <div className="flex items-center gap-2">
             {unreadCount > 0 && (
-              <Badge className="bg-red-500/20 text-red-300 border-red-500/30">
+              <Badge className="bg-red-500/20 text-red-400 dark:text-red-300 border-red-500/30">
                 {unreadCount} new
               </Badge>
             )}
@@ -260,7 +260,7 @@ export function NotificationCenter() {
                 size="sm"
                 onClick={markAllAsRead}
                 disabled={isLoading}
-                className="text-xs text-slate-400 hover:text-white"
+                className="text-xs"
               >
                 Mark all read
               </Button>
@@ -272,19 +272,19 @@ export function NotificationCenter() {
         <div className="overflow-y-auto flex-1">
           {notifications.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-center">
-              <Bell className="w-12 h-12 text-slate-600 mb-3" />
-              <p className="text-slate-400 text-sm">No notifications yet</p>
-              <p className="text-slate-500 text-xs mt-1">
+              <Bell className="w-12 h-12 text-muted-foreground mb-3" />
+              <p className="text-muted-foreground text-sm">No notifications yet</p>
+              <p className="text-muted-foreground text-xs mt-1 opacity-70">
                 You&apos;ll see updates about faults and system events here
               </p>
             </div>
           ) : (
-            <div className="divide-y divide-slate-700">
+            <div className="divide-y divide-border">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 hover:bg-slate-700/50 transition-colors ${
-                    !notification.read ? "bg-slate-700/30" : ""
+                  className={`p-4 hover:bg-accent/50 transition-colors ${
+                    !notification.read ? "bg-accent/30" : ""
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -294,24 +294,24 @@ export function NotificationCenter() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-white truncate">
+                          <p className="text-sm font-semibold truncate">
                             {notification.title}
                           </p>
-                          <p className="text-xs text-slate-400 mt-0.5">
+                          <p className="text-xs text-muted-foreground mt-0.5">
                             {notification.zoneName}
                           </p>
                         </div>
                         {!notification.read && (
                           <button
                             onClick={() => markAsRead(notification.id)}
-                            className="flex-shrink-0 p-1 rounded hover:bg-slate-600 transition-colors"
+                            className="flex-shrink-0 p-1 rounded hover:bg-accent transition-colors"
                             aria-label="Mark as read"
                           >
-                            <Check className="w-3 h-3 text-slate-400" />
+                            <Check className="w-3 h-3 text-muted-foreground" />
                           </button>
                         )}
                       </div>
-                      <p className="text-sm text-slate-300 mt-1 line-clamp-2">
+                      <p className="text-sm text-foreground/90 mt-1 line-clamp-2">
                         {notification.message}
                       </p>
                       <div className="flex items-center gap-2 mt-2">
@@ -322,7 +322,7 @@ export function NotificationCenter() {
                         >
                           {notification.type}
                         </Badge>
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-muted-foreground">
                           {formatTimestamp(notification.timestamp)}
                         </span>
                       </div>
@@ -330,7 +330,7 @@ export function NotificationCenter() {
                         <Link
                           href={`/dashboard/zones/${notification.zoneId}`}
                           onClick={() => setIsOpen(false)}
-                          className="text-xs text-blue-400 hover:text-blue-300 mt-2 inline-block"
+                          className="text-xs text-primary hover:underline mt-2 inline-block"
                         >
                           View zone details →
                         </Link>
@@ -345,11 +345,11 @@ export function NotificationCenter() {
 
         {/* Footer */}
         {notifications.length > 0 && (
-          <div className="p-3 border-t border-slate-700 text-center">
+          <div className="p-3 border-t border-border text-center">
             <Link
               href="/dashboard/logs"
               onClick={() => setIsOpen(false)}
-              className="text-sm text-blue-400 hover:text-blue-300"
+              className="text-sm text-primary hover:underline"
             >
               View all logs →
             </Link>

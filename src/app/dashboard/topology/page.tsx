@@ -397,7 +397,7 @@ export default function TopologyPage() {
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-lg text-slate-300">Loading Grid Topology...</p>
+          <p className="text-lg text-foreground">Loading Grid Topology...</p>
         </div>
       </div>
     );
@@ -416,21 +416,21 @@ export default function TopologyPage() {
             <ZapIcon className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />
             <span className="break-words">Live Grid Topology (IEC 60617)</span>
           </h2>
-          <p className="text-slate-400 mt-1 text-sm sm:text-base">
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             Real-time visualization using IEC standard electrical symbols
           </p>
           <div className="flex flex-wrap gap-3 sm:gap-4 mt-2 text-xs sm:text-sm">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-green-500"></div>
-              <span className="text-slate-300">Normal</span>
+              <span className="text-foreground">Normal</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-red-500"></div>
-              <span className="text-slate-300">Fault</span>
+              <span className="text-foreground">Fault</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-slate-500"></div>
-              <span className="text-slate-300">Offline</span>
+              <span className="text-foreground">Offline</span>
             </div>
           </div>
         </div>
@@ -474,7 +474,7 @@ export default function TopologyPage() {
       </div>
 
       {/* Topology Canvas */}
-      <div className="w-full h-[50vh] sm:h-[60vh] lg:h-[70vh] border-2 rounded-lg border-slate-700 bg-slate-900">
+      <div className="w-full h-[50vh] sm:h-[60vh] lg:h-[70vh] border-2 rounded-lg border-border bg-background">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -491,30 +491,30 @@ export default function TopologyPage() {
       </div>
 
       {/* Legend */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-slate-800 rounded-lg border border-slate-700">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 p-3 sm:p-4 bg-card rounded-lg border border-border">
         <div className="flex flex-col items-center text-center">
-          <div className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">
+          <div className="text-xs sm:text-sm font-semibold text-foreground mb-1">
             Power Source
           </div>
-          <div className="text-xs text-slate-400">AC Generator (~)</div>
+          <div className="text-xs text-muted-foreground">AC Generator (~)</div>
         </div>
         <div className="flex flex-col items-center text-center">
-          <div className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">
+          <div className="text-xs sm:text-sm font-semibold text-foreground mb-1">
             V&A Meter
           </div>
-          <div className="text-xs text-slate-400">PZEM Sensor</div>
+          <div className="text-xs text-muted-foreground">PZEM Sensor</div>
         </div>
         <div className="flex flex-col items-center text-center">
-          <div className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">
+          <div className="text-xs sm:text-sm font-semibold text-foreground mb-1">
             Circuit Breaker
           </div>
-          <div className="text-xs text-slate-400">Relay Control</div>
+          <div className="text-xs text-muted-foreground">Relay Control</div>
         </div>
         <div className="flex flex-col items-center text-center">
-          <div className="text-xs sm:text-sm font-semibold text-slate-300 mb-1">
+          <div className="text-xs sm:text-sm font-semibold text-foreground mb-1">
             Tie Switch
           </div>
-          <div className="text-xs text-slate-400">Normally Open</div>
+          <div className="text-xs text-muted-foreground">Normally Open</div>
         </div>
       </div>
     </div>

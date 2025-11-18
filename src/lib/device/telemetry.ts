@@ -172,11 +172,17 @@ export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput
       await Promise.all(statusUpdates);
     }
 
-    // Update device last seen
-    await client.query(
-      `UPDATE "DeviceAgent" SET last_seen = NOW(), updated_at = NOW() WHERE device_id = $1`,
-      [device.device_id]
-    );
+    // Update device and zone last seen timestamps
+    await Promise.all([
+      client.query(
+        `UPDATE "DeviceAgent" SET last_seen = NOW(), updated_at = NOW() WHERE device_id = $1`,
+        [device.device_id]
+      ),
+      client.query(
+        `UPDATE "ZoneAgent" SET last_seen = NOW() WHERE zone_agent_id = $1`,
+        [zoneId]
+      )
+    ]);
 
     await client.query('COMMIT');
   } catch (error) {
