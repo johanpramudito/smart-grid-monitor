@@ -70,11 +70,11 @@ export default function SignUpPage() {
   };
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-slate-900 text-white">
-      <Card className="w-full max-w-sm mx-4 bg-slate-800 border-slate-700 text-white">
+    <main className="flex items-center justify-center min-h-screen bg-background text-foreground">
+      <Card className="w-full max-w-sm mx-4">
         <CardHeader>
           <CardTitle className="text-2xl">Create Account</CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription>
             Enter your details to get started.
           </CardDescription>
         </CardHeader>
@@ -89,7 +89,6 @@ export default function SignUpPage() {
                   placeholder="name@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-slate-700 placeholder:text-slate-400 border-slate-600 focus:ring-sky-500"
                 />
               </div>
               <div className="flex flex-col space-y-1.5">
@@ -100,7 +99,6 @@ export default function SignUpPage() {
                   placeholder="********"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-slate-700 placeholder:text-slate-400 border-slate-600 focus:ring-sky-500"
                 />
               </div>
               <div className="flex flex-col space-y-1.5">
@@ -111,24 +109,23 @@ export default function SignUpPage() {
                   placeholder="********"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="bg-slate-700 placeholder:text-slate-400 border-slate-600 focus:ring-sky-500"
                 />
               </div>
               {error && (
-                <p className="text-sm text-red-500 text-center">{error}</p>
+                <p className="text-sm text-destructive text-center">{error}</p>
               )}
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Creating Account..." : "Sign Up"}
               </Button>
             </div>
           </form>
-          <div className="mt-4 text-center text-sm text-slate-400">
+          <div className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="underline hover:text-blue-400">
+            <Link href="/login" className="underline hover:text-primary">
               Sign In
             </Link>
           </div>

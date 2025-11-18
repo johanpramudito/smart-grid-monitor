@@ -6,6 +6,7 @@ import { useState, ReactNode, useEffect } from "react";
 import { Gauge, History, Network, LogOut, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationCenter } from "./notifications";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type DashboardShellProps = {
   children: ReactNode;
@@ -53,7 +54,7 @@ export function DashboardShell({ children, userEmail }: DashboardShellProps) {
   };
 
   return (
-    <div className="flex min-h-screen bg-slate-900 text-white">
+    <div className="flex min-h-screen bg-background text-foreground">
       {/* Mobile menu overlay */}
       {isMobileMenuOpen && (
         <div
@@ -66,7 +67,7 @@ export function DashboardShell({ children, userEmail }: DashboardShellProps) {
       <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-50
-          w-64 bg-slate-800 p-4 flex flex-col justify-between
+          w-64 bg-card border-r border-border p-4 flex flex-col justify-between
           transform transition-transform duration-300 ease-in-out
           ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
         `}
@@ -74,7 +75,7 @@ export function DashboardShell({ children, userEmail }: DashboardShellProps) {
         {/* Close button for mobile */}
         <button
           onClick={() => setIsMobileMenuOpen(false)}
-          className="lg:hidden absolute top-4 right-4 p-2 rounded-lg hover:bg-slate-700 text-slate-300"
+          className="lg:hidden absolute top-4 right-4 p-2 rounded-lg hover:bg-accent text-muted-foreground"
           aria-label="Close menu"
         >
           <X className="w-5 h-5" />
@@ -91,8 +92,8 @@ export function DashboardShell({ children, userEmail }: DashboardShellProps) {
                 href={item.href}
                 className={`flex items-center p-3 rounded-lg transition-colors text-sm ${
                   pathname === item.href
-                    ? "bg-blue-600 text-white font-semibold"
-                    : "text-slate-300 hover:bg-slate-700"
+                    ? "bg-primary text-primary-foreground font-semibold"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                 }`}
               >
                 <item.icon className="w-5 h-5 mr-3" />
@@ -101,12 +102,13 @@ export function DashboardShell({ children, userEmail }: DashboardShellProps) {
             ))}
           </nav>
         </div>
-        <div className="space-y-2">
-          <p className="text-xs text-slate-400 truncate">{userEmail}</p>
+        <div className="space-y-3">
+          <ThemeToggle />
+          <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
           <Button
             onClick={handleSignOut}
             variant="ghost"
-            className="w-full flex justify-start items-center p-3 text-slate-300 hover:bg-slate-700 hover:text-white"
+            className="w-full flex justify-start items-center p-3 hover:bg-accent hover:text-accent-foreground"
             disabled={isSigningOut}
           >
             <LogOut className="w-5 h-5 mr-3" />
@@ -116,18 +118,18 @@ export function DashboardShell({ children, userEmail }: DashboardShellProps) {
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="flex items-center justify-between lg:justify-end p-4 h-16 border-b border-slate-700 gap-4">
+        <header className="flex items-center justify-between lg:justify-end p-4 h-16 border-b border-border gap-4">
           {/* Hamburger menu for mobile */}
           <button
             onClick={() => setIsMobileMenuOpen(true)}
-            className="lg:hidden p-2 rounded-lg hover:bg-slate-700 text-slate-300"
+            className="lg:hidden p-2 rounded-lg hover:bg-accent text-muted-foreground"
             aria-label="Open menu"
           >
             <Menu className="w-6 h-6" />
           </button>
 
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-400 hidden sm:block truncate">
+            <span className="text-sm text-muted-foreground hidden sm:block truncate">
               Logged in as {userEmail}
             </span>
             <NotificationCenter />
