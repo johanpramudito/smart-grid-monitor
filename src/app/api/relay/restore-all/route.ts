@@ -39,22 +39,27 @@ export async function POST() {
       );
     }
 
-    // Check if zone 3 has a fault (if so, don't restore anything to prevent tie relay issues)
+    // Check if zone 3 has an active fault (if so, don't restore anything to prevent tie relay issues)
+    // Note: LOCKOUT can be restored via manual command, so only block if FAULT
     const zone3 = zones.rows.find((zone) => zone.feeder_number === 3);
-    if (zone3 && (zone3.zone_status === "FAULT" || zone3.zone_status === "LOCKOUT")) {
+    if (zone3 && zone3.zone_status === "FAULT") {
       return NextResponse.json({
         success: false,
-        message: "Cannot restore relays: Zone 3 has a fault. Tie relay must remain open.",
+        message: "Cannot restore relays: Zone 3 has an active fault. Tie relay must remain open.",
         relaysClosed: 0,
         zones: [],
       });
     }
 
-    // Filter zones with OPEN relays that are NORMAL status (exclude tie relay and zones still in fault)
+    // Filter zones with OPEN relays that are NOT actively in fault (exclude tie relay)
+    // Allow restoration for NORMAL, ISOLATED, TRIPPED, and LOCKOUT zones
+    // Manual CLOSE command can clear LOCKOUT state in STM32 (see line 988 in STM32 code)
     const openRelays = zones.rows.filter(
       (zone) =>
         zone.relay_status === "OPEN" &&
-        zone.zone_status === "NORMAL" && // Only restore zones that are no longer in fault
+        // Only exclude FAULT (active overcurrent) and OFFLINE (hardware issue)
+        zone.zone_status !== "FAULT" &&
+        zone.zone_status !== "OFFLINE" &&
         zone.feeder_number !== null &&
         zone.feeder_number <= 3 && // Exclude tie relay (feeder 99)
         zone.feeder_number > 0 // Only actual feeders
@@ -62,7 +67,7 @@ export async function POST() {
 
     console.log(`[RESTORE-ALL] Found ${zones.rows.length} zones total`);
     console.log(`[RESTORE-ALL] Zone 3 status: ${zone3?.zone_status || 'NOT FOUND'}`);
-    console.log(`[RESTORE-ALL] Found ${openRelays.length} NORMAL zones with OPEN relays ready for restoration`);
+    console.log(`[RESTORE-ALL] Found ${openRelays.length} zones with OPEN relays ready for restoration (including LOCKOUT, excluding FAULT/OFFLINE)`);
     openRelays.forEach(zone => {
       console.log(`  - Zone ${zone.feeder_number} (${zone.zone_agent_id}): relay_status=${zone.relay_status}, zone_status=${zone.zone_status}, api_key_id=${zone.api_key_id}`);
     });
@@ -70,7 +75,7 @@ export async function POST() {
     if (openRelays.length === 0) {
       return NextResponse.json({
         success: true,
-        message: "No relays need restoration (all NORMAL zones have closed relays)",
+        message: "No relays need restoration (all non-faulty zones have closed relays)",
         relaysClosed: 0,
         zones: [],
       });
@@ -88,14 +93,15 @@ export async function POST() {
 
     for (const zone of openRelays) {
       try {
-        // Double-check: never send commands to tie relay or zones still in fault
+        // Double-check: never send commands to tie relay or zones still in active fault
         if (zone.feeder_number > 3 || zone.feeder_number === 99) {
           console.log(`[RESTORE-ALL] Skipping tie relay (feeder ${zone.feeder_number})`);
           continue;
         }
 
-        if (zone.zone_status === "FAULT" || zone.zone_status === "LOCKOUT") {
-          console.log(`[RESTORE-ALL] Skipping zone ${zone.feeder_number} due to ${zone.zone_status} status`);
+        // Only skip if still in active FAULT (LOCKOUT can be cleared by manual command)
+        if (zone.zone_status === "FAULT") {
+          console.log(`[RESTORE-ALL] Skipping zone ${zone.feeder_number} due to active FAULT`);
           continue;
         }
 

@@ -197,18 +197,18 @@ export default function ZoneDetailPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader className="w-12 h-12 animate-spin text-blue-500" />
-        <p className="ml-4 text-lg">Loading Zone Data...</p>
+        <Loader className="w-12 h-12 animate-spin text-blue-500 dark:text-blue-400" />
+        <p className="ml-4 text-lg text-slate-900 dark:text-slate-100">Loading Zone Data...</p>
       </div>
     );
   }
 
   if (error) {
-    return <div className="text-red-500 text-center">Error: {error}</div>;
+    return <div className="text-red-600 dark:text-red-400 text-center">Error: {error}</div>;
   }
 
   if (!zoneData) {
-    return <div className="text-center">No data available for this zone.</div>;
+    return <div className="text-center text-slate-900 dark:text-slate-100">No data available for this zone.</div>;
   }
 
   const { details, history } = zoneData;
@@ -229,10 +229,10 @@ export default function ZoneDetailPage() {
   return (
     <div className="space-y-4 sm:space-y-6 lg:space-y-8">
       <div>
-        <h2 className="text-2xl sm:text-3xl font-bold break-words">
+        <h2 className="text-2xl sm:text-3xl font-bold break-words text-slate-900 dark:text-slate-100">
           {isTieRelay ? "⚡ " : ""}{details.location_description} Details
         </h2>
-        <p className="text-sm sm:text-base text-slate-400">
+        <p className="text-sm sm:text-base text-slate-600 dark:text-slate-400">
           {isTieRelay
             ? "FLISR (Fault Location, Isolation, and Service Restoration) Control System"
             : `Real-time monitoring and control for Zone ID: ${details.zone_agent_id}`}
@@ -243,34 +243,34 @@ export default function ZoneDetailPage() {
       {isTieRelay && (
         <Card className={`border-2 ${
           isManualMode
-            ? 'bg-yellow-950 border-yellow-500'
+            ? 'bg-yellow-50 dark:bg-yellow-950 border-yellow-500'
             : anyZoneFaulted
-              ? 'bg-red-950 border-red-500'
-              : 'bg-blue-950 border-blue-500'
+              ? 'bg-red-50 dark:bg-red-950 border-red-500'
+              : 'bg-blue-50 dark:bg-blue-950 border-blue-500'
         }`}>
           <CardHeader>
             <CardTitle className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <span className="flex items-center">
+              <span className="flex items-center text-slate-900 dark:text-slate-100">
                 {isManualMode ? (
                   <>
-                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-yellow-400 flex-shrink-0" />
+                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-yellow-600 dark:text-yellow-400 flex-shrink-0" />
                     <span className="text-base sm:text-lg">Manual Override Active</span>
                   </>
                 ) : anyZoneFaulted ? (
                   <>
-                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-red-400 flex-shrink-0" />
+                    <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-red-600 dark:text-red-400 flex-shrink-0" />
                     <span className="text-base sm:text-lg">FLISR Activated - Fault Detected</span>
                   </>
                 ) : (
                   <>
-                    <Power className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-blue-400 flex-shrink-0" />
+                    <Power className="w-5 h-5 sm:w-6 sm:h-6 mr-2 sm:mr-3 text-blue-600 dark:text-blue-400 flex-shrink-0" />
                     <span className="text-base sm:text-lg">FLISR Automatic Mode - Normal Operation</span>
                   </>
                 )}
               </span>
               <Badge className={`flex-shrink-0 ${
                 isManualMode
-                  ? 'bg-yellow-500 text-yellow-950'
+                  ? 'bg-yellow-500 text-yellow-950 dark:text-yellow-950'
                   : anyZoneFaulted
                     ? 'bg-red-500 text-white'
                     : 'bg-blue-500 text-white'
@@ -281,7 +281,7 @@ export default function ZoneDetailPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {isManualMode ? (
-              <div className="text-yellow-200">
+              <div className="text-yellow-900 dark:text-yellow-200">
                 <p className="font-semibold mb-2">🎮 Manual Control Mode</p>
                 <p className="text-sm">
                   Tie relay is under manual control. Automatic FLISR logic is bypassed.
@@ -289,27 +289,27 @@ export default function ZoneDetailPage() {
                 </p>
               </div>
             ) : anyZoneFaulted ? (
-              <div className="text-red-200">
+              <div className="text-red-900 dark:text-red-200">
                 <p className="font-semibold mb-2">⚡ FLISR Active - Service Restoration</p>
                 <p className="text-sm mb-3">
                   Fault detected in {faultedZones.map(z => z.location_description).join(', ')}.
                   Tie relay has automatically <strong>CLOSED</strong> to restore power to healthy zones.
                 </p>
-                <div className="bg-red-900/30 p-3 rounded-md border border-red-700">
-                  <p className="text-xs font-mono">
+                <div className="bg-red-100 dark:bg-red-900/30 p-3 rounded-md border border-red-300 dark:border-red-700">
+                  <p className="text-xs font-mono text-red-900 dark:text-red-200">
                     <strong>FLISR Logic:</strong> Zone fault → Isolate faulted zone → Close tie relay → Restore service to healthy zones
                   </p>
                 </div>
               </div>
             ) : (
-              <div className="text-blue-200">
+              <div className="text-blue-900 dark:text-blue-200">
                 <p className="font-semibold mb-2">✓ All Systems Normal</p>
                 <p className="text-sm mb-3">
                   All zones are operating normally. Tie relay is <strong>OPEN</strong> to maintain zone isolation.
                   FLISR will automatically close the tie relay if any zone experiences a fault.
                 </p>
-                <div className="bg-blue-900/30 p-3 rounded-md border border-blue-700">
-                  <p className="text-xs font-mono">
+                <div className="bg-blue-100 dark:bg-blue-900/30 p-3 rounded-md border border-blue-300 dark:border-blue-700">
+                  <p className="text-xs font-mono text-blue-900 dark:text-blue-200">
                     <strong>Normal Operation:</strong> All zones powered independently → Tie relay OPEN → Zones isolated
                   </p>
                 </div>
@@ -321,9 +321,9 @@ export default function ZoneDetailPage() {
 
       {/* Zone Health Monitoring - Only for Tie Relay */}
       {isTieRelay && allZones && (
-        <Card className="bg-slate-800 border-slate-700">
+        <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
           <CardHeader>
-            <CardTitle className="flex items-center">
+            <CardTitle className="flex items-center text-slate-900 dark:text-slate-100">
               <History className="w-5 h-5 mr-3" />
               Zone Health Monitor
             </CardTitle>
@@ -335,27 +335,27 @@ export default function ZoneDetailPage() {
                   key={zone.zone_agent_id}
                   className={`p-4 rounded-lg border-2 transition-all ${
                     zone.status === 'FAULT'
-                      ? 'bg-red-950 border-red-500'
-                      : 'bg-green-950 border-green-500'
+                      ? 'bg-red-50 dark:bg-red-950 border-red-500'
+                      : 'bg-green-50 dark:bg-green-950 border-green-500'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold">{zone.location_description}</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100">{zone.location_description}</h3>
                     {zone.status === 'FAULT' ? (
-                      <AlertTriangle className="w-5 h-5 text-red-400" />
+                      <AlertTriangle className="w-5 h-5 text-red-600 dark:text-red-400" />
                     ) : (
-                      <Power className="w-5 h-5 text-green-400" />
+                      <Power className="w-5 h-5 text-green-600 dark:text-green-400" />
                     )}
                   </div>
                   <div className="text-sm space-y-1">
-                    <p className={zone.status === 'FAULT' ? 'text-red-300' : 'text-green-300'}>
+                    <p className={zone.status === 'FAULT' ? 'text-red-700 dark:text-red-300' : 'text-green-700 dark:text-green-300'}>
                       Status: <strong>{zone.status}</strong>
                     </p>
-                    <p className="text-slate-400">
+                    <p className="text-slate-600 dark:text-slate-400">
                       Feeder: {zone.feeder_number}
                     </p>
                     {zone.active_faults > 0 && (
-                      <p className="text-red-400">
+                      <p className="text-red-600 dark:text-red-400">
                         Active Faults: {zone.active_faults}
                       </p>
                     )}
@@ -364,8 +364,8 @@ export default function ZoneDetailPage() {
               ))}
             </div>
             {anyZoneFaulted && (
-              <div className="mt-4 p-3 bg-red-900/30 border border-red-700 rounded-md">
-                <p className="text-red-200 text-sm">
+              <div className="mt-4 p-3 bg-red-100 dark:bg-red-900/30 border border-red-300 dark:border-red-700 rounded-md">
+                <p className="text-red-900 dark:text-red-200 text-sm">
                   ⚠️ <strong>FLISR Action:</strong> Tie relay is CLOSED to restore power to healthy zones ({
                     allZones.zones
                       .filter(z => z.status !== 'FAULT')
@@ -385,32 +385,32 @@ export default function ZoneDetailPage() {
           <div className="lg:col-span-2 space-y-4 sm:space-y-6">
             {/* Regular Feeders: Show all electrical parameters */}
             <>
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
                 <CardHeader>
-                  <CardTitle className="text-base sm:text-lg">Voltage (V) over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg text-slate-900 dark:text-slate-100">Voltage (V) over Time</CardTitle>
                 </CardHeader>
                 <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                      <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 250]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" className="dark:stroke-slate-600" />
+                      <XAxis dataKey="time" stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
+                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[0, 250]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                       <Line type="monotone" dataKey="voltage" stroke="#38BDF8" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
               </Card>
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
                 <CardHeader>
-                  <CardTitle className="text-base sm:text-lg">Current (A) over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg text-slate-900 dark:text-slate-100">Current (A) over Time</CardTitle>
                 </CardHeader>
                 <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                      <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 6]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" className="dark:stroke-slate-600" />
+                      <XAxis dataKey="time" stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
+                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[0, 6]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                       <Line type="monotone" dataKey="current" stroke="#FBBF24" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
@@ -419,16 +419,16 @@ export default function ZoneDetailPage() {
               </Card>
 
               {/* Power Chart */}
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
                 <CardHeader>
-                  <CardTitle className="text-base sm:text-lg">Power (W) over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg text-slate-900 dark:text-slate-100">Power (W) over Time</CardTitle>
                 </CardHeader>
                 <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                      <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1500]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" className="dark:stroke-slate-600" />
+                      <XAxis dataKey="time" stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
+                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[0, 1500]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                       <Line type="monotone" dataKey="power" stroke="#10B981" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
@@ -437,16 +437,16 @@ export default function ZoneDetailPage() {
               </Card>
 
               {/* Power Factor Chart */}
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
                 <CardHeader>
-                  <CardTitle className="text-base sm:text-lg">Power Factor over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg text-slate-900 dark:text-slate-100">Power Factor over Time</CardTitle>
                 </CardHeader>
                 <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                      <YAxis stroke="#94A3B8" fontSize={12} domain={[0, 1]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" className="dark:stroke-slate-600" />
+                      <XAxis dataKey="time" stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
+                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[0, 1]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                       <Line type="monotone" dataKey="power_factor" stroke="#8B5CF6" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
@@ -455,16 +455,16 @@ export default function ZoneDetailPage() {
               </Card>
 
               {/* Energy Chart */}
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
                 <CardHeader>
-                  <CardTitle className="text-base sm:text-lg">Energy (kWh) - Cumulative</CardTitle>
+                  <CardTitle className="text-base sm:text-lg text-slate-900 dark:text-slate-100">Energy (kWh) - Cumulative</CardTitle>
                 </CardHeader>
                 <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                      <YAxis stroke="#94A3B8" fontSize={12} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" className="dark:stroke-slate-600" />
+                      <XAxis dataKey="time" stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
+                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                       <Line type="monotone" dataKey="energy" stroke="#F59E0B" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
@@ -473,16 +473,16 @@ export default function ZoneDetailPage() {
               </Card>
 
               {/* Frequency Chart */}
-              <Card className="bg-slate-800 border-slate-700">
+              <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
                 <CardHeader>
-                  <CardTitle className="text-base sm:text-lg">Frequency (Hz) over Time</CardTitle>
+                  <CardTitle className="text-base sm:text-lg text-slate-900 dark:text-slate-100">Frequency (Hz) over Time</CardTitle>
                 </CardHeader>
                 <CardContent className="h-48 sm:h-56 lg:h-64">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={formattedHistory}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#475569" />
-                      <XAxis dataKey="time" stroke="#94A3B8" fontSize={12} />
-                      <YAxis stroke="#94A3B8" fontSize={12} domain={[49, 51]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" className="dark:stroke-slate-600" />
+                      <XAxis dataKey="time" stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
+                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[49, 51]} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                       <Line type="monotone" dataKey="frequency" stroke="#EC4899" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
@@ -495,25 +495,25 @@ export default function ZoneDetailPage() {
 
         <div className="space-y-4 sm:space-y-6">
           {/* Side Panels */}
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
             <CardHeader>
-              <CardTitle>{isTieRelay ? "FLISR System Status" : "System Status"}</CardTitle>
+              <CardTitle className="text-slate-900 dark:text-slate-100">{isTieRelay ? "FLISR System Status" : "System Status"}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-slate-400">{isTieRelay ? "FLISR Mode" : "Zone Agent"}</span>
+                <span className="text-slate-600 dark:text-slate-400">{isTieRelay ? "FLISR Mode" : "Zone Agent"}</span>
                 <Badge variant={isFault ? "destructive" : "default"}>{details.status}</Badge>
               </div>
               {isTieRelay && (
                 <>
                   <div className="flex justify-between items-start text-sm">
-                    <span className="text-slate-400 pr-2">Relay State</span>
+                    <span className="text-slate-600 dark:text-slate-400 pr-2">Relay State</span>
                     <span className={`text-right font-semibold ${
                       isManualMode
-                        ? 'text-yellow-300'
+                        ? 'text-yellow-700 dark:text-yellow-300'
                         : anyZoneFaulted
-                          ? 'text-red-300'
-                          : 'text-green-300'
+                          ? 'text-red-700 dark:text-red-300'
+                          : 'text-green-700 dark:text-green-300'
                     }`}>
                       {isManualMode
                         ? 'MANUAL CONTROL'
@@ -523,15 +523,15 @@ export default function ZoneDetailPage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-start text-sm">
-                    <span className="text-slate-400 pr-2">Automatic Control</span>
-                    <span className={`text-right ${isManualMode ? 'text-yellow-300' : 'text-green-300'}`}>
+                    <span className="text-slate-600 dark:text-slate-400 pr-2">Automatic Control</span>
+                    <span className={`text-right ${isManualMode ? 'text-yellow-700 dark:text-yellow-300' : 'text-green-700 dark:text-green-300'}`}>
                       {isManualMode ? 'Bypassed' : 'Active'}
                     </span>
                   </div>
                   {anyZoneFaulted && !isManualMode && (
                     <div className="flex justify-between items-start text-sm">
-                      <span className="text-slate-400 pr-2">Faulted Zones</span>
-                      <span className="text-right text-red-300">
+                      <span className="text-slate-600 dark:text-slate-400 pr-2">Faulted Zones</span>
+                      <span className="text-right text-red-700 dark:text-red-300">
                         {faultedZones.map(z => z.location_description).join(', ')}
                       </span>
                     </div>
@@ -539,43 +539,43 @@ export default function ZoneDetailPage() {
                 </>
               )}
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400 flex items-center">
+                <span className="text-slate-600 dark:text-slate-400 flex items-center">
                   <History className="mr-2 h-4 w-4" />
                   Created
                 </span>
-                <span>{new Date(details.created_at).toLocaleDateString()}</span>
+                <span className="text-slate-900 dark:text-slate-100">{new Date(details.created_at).toLocaleDateString()}</span>
               </div>
               {details.device_id && (
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-400">Device ID</span>
-                  <span className="text-slate-300 truncate max-w-[140px]" title={details.device_id}>
+                  <span className="text-slate-600 dark:text-slate-400">Device ID</span>
+                  <span className="text-slate-900 dark:text-slate-300 truncate max-w-[140px]" title={details.device_id}>
                     {details.device_id}
                   </span>
                 </div>
               )}
               {details.device_last_seen && (
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-slate-400">Last seen</span>
-                  <span className="text-slate-300">
+                  <span className="text-slate-600 dark:text-slate-400">Last seen</span>
+                  <span className="text-slate-900 dark:text-slate-300">
                     {new Date(details.device_last_seen).toLocaleString()}
                   </span>
                 </div>
               )}
               <div className="flex justify-between items-center text-sm">
-                <span className="text-slate-400">Active faults</span>
-                <span className={details.active_faults > 0 ? "text-red-400 font-medium" : "text-slate-300"}>
+                <span className="text-slate-600 dark:text-slate-400">Active faults</span>
+                <span className={details.active_faults > 0 ? "text-red-600 dark:text-red-400 font-medium" : "text-slate-900 dark:text-slate-300"}>
                   {details.active_faults}
                 </span>
               </div>
               {details.fault_timestamp && (
                 <div className="flex justify-between items-start text-sm">
-                  <span className="text-slate-400 pr-2">Last fault</span>
-                  <span className="text-right text-slate-300">
+                  <span className="text-slate-600 dark:text-slate-400 pr-2">Last fault</span>
+                  <span className="text-right text-slate-900 dark:text-slate-300">
                     {new Date(details.fault_timestamp).toLocaleString()}
                     {details.fault_description && (
                       <>
                         <br />
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-slate-600 dark:text-slate-400">
                           {details.fault_description}
                         </span>
                       </>
@@ -586,9 +586,9 @@ export default function ZoneDetailPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-slate-800 border-slate-700">
+          <Card className="bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-700">
             <CardHeader>
-              <CardTitle>Manual Override</CardTitle>
+              <CardTitle className="text-slate-900 dark:text-slate-100">Manual Override</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {isTieRelay && !isManualMode && anyZoneFaulted && (
@@ -602,10 +602,10 @@ export default function ZoneDetailPage() {
                 </Alert>
               )}
               {isTieRelay && isManualMode && (
-                <Alert className="mb-3 border-yellow-500 bg-yellow-950">
-                  <AlertTriangle className="h-4 w-4 text-yellow-400" />
-                  <AlertTitle className="text-yellow-300">FLISR Bypassed</AlertTitle>
-                  <AlertDescription className="text-yellow-200">
+                <Alert className="mb-3 border-yellow-500 bg-yellow-50 dark:bg-yellow-950">
+                  <AlertTriangle className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
+                  <AlertTitle className="text-yellow-800 dark:text-yellow-300">FLISR Bypassed</AlertTitle>
+                  <AlertDescription className="text-yellow-700 dark:text-yellow-200">
                     Automatic FLISR control is currently disabled. The system will NOT respond to zone faults automatically.
                   </AlertDescription>
                 </Alert>
@@ -620,10 +620,10 @@ export default function ZoneDetailPage() {
                 </Alert>
               )}
               {isManualOverride && (
-                <Alert className="mb-3 border-orange-500 bg-orange-950">
-                  <AlertTriangle className="h-4 w-4 text-orange-400" />
-                  <AlertTitle className="text-orange-300">Manual Override Active</AlertTitle>
-                  <AlertDescription className="text-orange-200">
+                <Alert className="mb-3 border-orange-500 bg-orange-50 dark:bg-orange-950">
+                  <AlertTriangle className="h-4 w-4 text-orange-600 dark:text-orange-400" />
+                  <AlertTitle className="text-orange-800 dark:text-orange-300">Manual Override Active</AlertTitle>
+                  <AlertDescription className="text-orange-700 dark:text-orange-200">
                     This relay is under manual control. Automatic protection is bypassed.
                     Click &quot;Return to Auto Protection&quot; to re-enable automatic control after 60 seconds or immediately.
                   </AlertDescription>
@@ -669,16 +669,16 @@ export default function ZoneDetailPage() {
                 {isTieRelay ? 'Manual OPEN Tie Relay' : 'Force Relay OPEN'}
               </Button>
               {isTieRelay && (
-                <div className="mt-3 p-3 bg-slate-700 rounded-md border border-slate-600">
-                  <p className="text-xs text-slate-300">
+                <div className="mt-3 p-3 bg-slate-100 dark:bg-slate-700 rounded-md border border-slate-300 dark:border-slate-600">
+                  <p className="text-xs text-slate-700 dark:text-slate-300">
                     <strong>Note:</strong> Manual control will {isManualMode ? 'remain active' : 'bypass FLISR automatic control'}.
                     {!isManualMode && ' The system will not automatically respond to zone faults until you exit manual mode.'}
                   </p>
                 </div>
               )}
               {relayControlMessage && (
-                <Alert className={relayControlMessage.startsWith('✓') ? 'border-green-500 bg-green-950' : 'border-red-500 bg-red-950'}>
-                  <AlertDescription className={relayControlMessage.startsWith('✓') ? 'text-green-200' : 'text-red-200'}>
+                <Alert className={relayControlMessage.startsWith('✓') ? 'border-green-500 bg-green-50 dark:bg-green-950' : 'border-red-500 bg-red-50 dark:bg-red-950'}>
+                  <AlertDescription className={relayControlMessage.startsWith('✓') ? 'text-green-800 dark:text-green-200' : 'text-red-800 dark:text-red-200'}>
                     {relayControlMessage}
                   </AlertDescription>
                 </Alert>

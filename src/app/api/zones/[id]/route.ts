@@ -22,67 +22,65 @@ export async function GET(
     }
 
     // Query for zone details and its historical sensor readings in parallel
-    const [detailsResult, historyResult] = await Promise.all([
+    // Optimized to use indexes and avoid expensive LATERAL joins
+    const [detailsResult, historyResult, faultResult, deviceResult] = await Promise.all([
+      // Basic zone info (fastest query)
       client.query(
-        `
-          SELECT
-            z.*,
-            COALESCE(f.fault_event_count, 0) AS active_faults,
-            fe.event_id AS active_fault_event_id,
-            fe.description AS fault_description,
-            fe.timestamp AS fault_timestamp,
-            da.device_id AS device_id,
-            da.last_seen AS device_last_seen
-          FROM "ZoneAgent" z
-          LEFT JOIN (
-            SELECT zone_agent_id, COUNT(*) AS fault_event_count
-            FROM "EventLog"
-            WHERE zone_agent_id = $1
-              AND event_type = 'FAULT'
-              AND resolved = FALSE
-            GROUP BY zone_agent_id
-          ) f ON f.zone_agent_id = z.zone_agent_id
-          LEFT JOIN LATERAL (
-            SELECT e.event_id, e.description, e.timestamp
-            FROM "EventLog" e
-            WHERE e.zone_agent_id = z.zone_agent_id
-              AND e.event_type = 'FAULT'
-              AND e.resolved = FALSE
-            ORDER BY e.timestamp DESC
-            LIMIT 1
-          ) fe ON TRUE
-          LEFT JOIN LATERAL (
-            SELECT d.device_id, d.last_seen
-            FROM "DeviceAgent" d
-            WHERE d.zone_agent_id = z.zone_agent_id
-            ORDER BY d.last_seen DESC NULLS LAST
-            LIMIT 1
-          ) da ON TRUE
-          WHERE z.zone_agent_id = $1
-        `,
+        `SELECT * FROM "ZoneAgent" WHERE zone_agent_id = $1`,
         [zoneId]
       ),
+      // Sensor readings (uses idx_sensor_zone and idx_sensorreading_sensor_timestamp)
       client.query(`
         SELECT r.timestamp, r.voltage, r.current, r.power, r.power_factor, r.energy, r.frequency
         FROM "SensorReading" r
         JOIN "Sensor" s ON r.sensor_id = s.sensor_id
         WHERE s.zone_agent_id = $1
         ORDER BY r.timestamp DESC
-        LIMIT 200; -- Get the last 200 readings for the chart
+        LIMIT 200
       `, [zoneId]),
+      // Fault info (uses idx_eventlog_zone_type_resolved)
+      client.query(`
+        SELECT
+          COUNT(*) as fault_event_count,
+          (SELECT event_id FROM "EventLog"
+           WHERE zone_agent_id = $1 AND event_type = 'FAULT' AND resolved = FALSE
+           ORDER BY timestamp DESC LIMIT 1) as active_fault_event_id,
+          (SELECT description FROM "EventLog"
+           WHERE zone_agent_id = $1 AND event_type = 'FAULT' AND resolved = FALSE
+           ORDER BY timestamp DESC LIMIT 1) as fault_description,
+          (SELECT timestamp FROM "EventLog"
+           WHERE zone_agent_id = $1 AND event_type = 'FAULT' AND resolved = FALSE
+           ORDER BY timestamp DESC LIMIT 1) as fault_timestamp
+        FROM "EventLog"
+        WHERE zone_agent_id = $1 AND event_type = 'FAULT' AND resolved = FALSE
+      `, [zoneId]),
+      // Device info (uses idx_deviceagent_zone_lastseen)
+      client.query(`
+        SELECT device_id, last_seen
+        FROM "DeviceAgent"
+        WHERE zone_agent_id = $1
+        ORDER BY last_seen DESC NULLS LAST
+        LIMIT 1
+      `, [zoneId])
     ]);
 
     if (detailsResult.rows.length === 0) {
       return NextResponse.json({ message: `Zone with ID ${zoneId} not found.` }, { status: 404 });
     }
 
+    // Combine results from parallel queries
     const zoneDetails = detailsResult.rows[0];
-    zoneDetails.active_faults = Number(zoneDetails.active_faults ?? 0);
-    zoneDetails.active_fault_event_id = zoneDetails.active_fault_event_id ?? null;
-    zoneDetails.fault_description = zoneDetails.fault_description ?? null;
-    zoneDetails.fault_timestamp = zoneDetails.fault_timestamp ?? null;
-    zoneDetails.device_id = zoneDetails.device_id ?? null;
-    zoneDetails.device_last_seen = zoneDetails.device_last_seen ?? null;
+    const faultData = faultResult.rows[0] || {};
+    const deviceData = deviceResult.rows[0] || {};
+
+    // Merge fault and device data into zone details
+    zoneDetails.active_faults = Number(faultData.fault_event_count ?? 0);
+    zoneDetails.active_fault_event_id = faultData.active_fault_event_id ?? null;
+    zoneDetails.fault_description = faultData.fault_description ?? null;
+    zoneDetails.fault_timestamp = faultData.fault_timestamp ?? null;
+    zoneDetails.device_id = deviceData.device_id ?? null;
+    zoneDetails.device_last_seen = deviceData.last_seen ?? null;
+
     const sensorHistory = historyResult.rows;
 
     // The current schema stores voltage and current readings in separate rows.
