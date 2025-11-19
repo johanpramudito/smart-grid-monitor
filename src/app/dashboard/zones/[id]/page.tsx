@@ -142,8 +142,9 @@ export default function ZoneDetailPage() {
     fetchData();
 
     // Subsequent fetches without loading indicator (background refresh)
-    // 2000ms (2 seconds) provides real-time updates while reducing database load
-    const intervalId = window.setInterval(fetchData, 2000); // Updates every 2 seconds
+    // 1000ms (1 second) provides real-time updates for fast transient capture
+    // STM32 publishes every 500ms, so 1s polling captures spikes effectively
+    const intervalId = window.setInterval(fetchData, 1000); // Updates every 1 second
 
     return () => {
       isActive = false;
@@ -410,7 +411,7 @@ export default function ZoneDetailPage() {
                     <LineChart data={formattedHistory}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" className="dark:stroke-slate-600" />
                       <XAxis dataKey="time" stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
-                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[0, 6]} />
+                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[0, 'auto']} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                       <Line type="monotone" dataKey="current" stroke="#FBBF24" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
@@ -428,7 +429,7 @@ export default function ZoneDetailPage() {
                     <LineChart data={formattedHistory}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#94A3B8" className="dark:stroke-slate-600" />
                       <XAxis dataKey="time" stroke="#475569" className="dark:stroke-slate-400" fontSize={12} />
-                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[0, 1500]} />
+                      <YAxis stroke="#475569" className="dark:stroke-slate-400" fontSize={12} domain={[0, 'auto']} />
                       <Tooltip contentStyle={{ backgroundColor: "#1E293B", border: "1px solid #475569" }} />
                       <Line type="monotone" dataKey="power" stroke="#10B981" strokeWidth={2} dot={false} isAnimationActive={false} />
                     </LineChart>
