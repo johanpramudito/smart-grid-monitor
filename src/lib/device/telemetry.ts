@@ -57,73 +57,49 @@ export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput
     await client.query('BEGIN');
     const zoneId = device.zone_agent_id;
 
-    // Batch sensor creation for all needed sensor types
-    const sensorPromises = [];
-    const needsVoltage = input.voltage !== undefined ||
+    // Update device and zone last seen timestamps FIRST for faster status updates
+    await Promise.all([
+      client.query(
+        `UPDATE "DeviceAgent" SET last_seen = NOW(), updated_at = NOW() WHERE device_id = $1`,
+        [device.device_id]
+      ),
+      client.query(
+        `UPDATE "ZoneAgent" SET last_seen = NOW() WHERE zone_agent_id = $1`,
+        [zoneId]
+      )
+    ]);
+
+    // Create a single sensor per zone for all readings
+    const sensorId = await getOrCreateSensor(client, zoneId, 'VOLTAGE');
+
+    // Insert all sensor data in a SINGLE row to avoid timestamp merge issues
+    const hasAnyReading = input.voltage !== undefined || input.current !== undefined ||
                          input.power !== undefined || input.pf !== undefined ||
                          input.energy !== undefined || input.frequency !== undefined;
-    const needsCurrent = input.current !== undefined;
 
-    if (needsVoltage) {
-      sensorPromises.push(getOrCreateSensor(client, zoneId, 'VOLTAGE'));
-    }
-    if (needsCurrent) {
-      sensorPromises.push(getOrCreateSensor(client, zoneId, 'CURRENT'));
-    }
+    if (hasAnyReading) {
+      const insertParams: (string | number)[] = [sensorId];
+      let paramIndex = 2;
 
-    const sensors = await Promise.all(sensorPromises);
-    const voltageSensorId = needsVoltage ? sensors[0] : null;
-    const currentSensorId = needsCurrent ? sensors[needsVoltage ? 1 : 0] : null;
-
-    // Batch all sensor reading inserts into a single query
-    const insertBatch: string[] = [];
-    const insertParams: (string | number)[] = [];
-    let paramIndex = 1;
-
-    if (voltageSensorId && typeof input.voltage === 'number') {
-      const sensorIdParam = paramIndex++;
-      const voltageParam = paramIndex++;
-      const timestampParam = paramIndex++;
-
-      insertBatch.push(`($${sensorIdParam}, $${voltageParam}, NULL, NULL, NULL, NULL, NULL, $${timestampParam})`);
-      insertParams.push(voltageSensorId, input.voltage, input.timestamp.toISOString());
-    }
-
-    if (currentSensorId && typeof input.current === 'number') {
-      const sensorIdParam = paramIndex++;
-      const currentParam = paramIndex++;
-      const timestampParam = paramIndex++;
-
-      insertBatch.push(`($${sensorIdParam}, NULL, $${currentParam}, NULL, NULL, NULL, NULL, $${timestampParam})`);
-      insertParams.push(currentSensorId, input.current, input.timestamp.toISOString());
-    }
-
-    // Add power metrics row
-    const hasPowerMetrics = input.power !== undefined || input.pf !== undefined ||
-                           input.energy !== undefined || input.frequency !== undefined;
-
-    if (voltageSensorId && hasPowerMetrics) {
-      const sensorIdParam = paramIndex++;
+      const voltageParam = input.voltage !== undefined ? `$${paramIndex++}` : 'NULL';
+      const currentParam = input.current !== undefined ? `$${paramIndex++}` : 'NULL';
       const powerParam = input.power !== undefined ? `$${paramIndex++}` : 'NULL';
       const pfParam = input.pf !== undefined ? `$${paramIndex++}` : 'NULL';
       const energyParam = input.energy !== undefined ? `$${paramIndex++}` : 'NULL';
       const frequencyParam = input.frequency !== undefined ? `$${paramIndex++}` : 'NULL';
       const timestampParam = paramIndex++;
 
-      insertBatch.push(`($${sensorIdParam}, NULL, NULL, ${powerParam}, ${pfParam}, ${energyParam}, ${frequencyParam}, $${timestampParam})`);
-      insertParams.push(voltageSensorId);
+      if (input.voltage !== undefined) insertParams.push(input.voltage);
+      if (input.current !== undefined) insertParams.push(input.current);
       if (input.power !== undefined) insertParams.push(input.power);
       if (input.pf !== undefined) insertParams.push(input.pf);
       if (input.energy !== undefined) insertParams.push(input.energy);
       if (input.frequency !== undefined) insertParams.push(input.frequency);
       insertParams.push(input.timestamp.toISOString());
-    }
 
-    // Execute batched sensor inserts
-    if (insertBatch.length > 0) {
       await client.query(
         `INSERT INTO "SensorReading" (sensor_id, voltage, current, power, power_factor, energy, frequency, timestamp)
-         VALUES ${insertBatch.join(', ')}`,
+         VALUES ($1, ${voltageParam}, ${currentParam}, ${powerParam}, ${pfParam}, ${energyParam}, ${frequencyParam}, $${timestampParam})`,
         insertParams
       );
     }
@@ -171,18 +147,6 @@ export async function ingestTelemetry(device: DeviceAgent, input: TelemetryInput
 
       await Promise.all(statusUpdates);
     }
-
-    // Update device and zone last seen timestamps
-    await Promise.all([
-      client.query(
-        `UPDATE "DeviceAgent" SET last_seen = NOW(), updated_at = NOW() WHERE device_id = $1`,
-        [device.device_id]
-      ),
-      client.query(
-        `UPDATE "ZoneAgent" SET last_seen = NOW() WHERE zone_agent_id = $1`,
-        [zoneId]
-      )
-    ]);
 
     await client.query('COMMIT');
   } catch (error) {

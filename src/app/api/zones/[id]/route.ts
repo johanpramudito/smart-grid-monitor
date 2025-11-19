@@ -81,49 +81,16 @@ export async function GET(
     zoneDetails.device_id = deviceData.device_id ?? null;
     zoneDetails.device_last_seen = deviceData.last_seen ?? null;
 
-    const sensorHistory = historyResult.rows;
-
-    // The current schema stores voltage and current readings in separate rows.
-    // We need to process them into a format suitable for charting (e.g., { time, voltage, current, power, power_factor, energy, frequency }).
-    // This is a simplified approach; a more robust solution might involve more complex SQL pivoting.
-    type HistoryPoint = {
-      time: string;
-      voltage?: number;
-      current?: number;
-      power?: number;
-      power_factor?: number;
-      energy?: number;
-      frequency?: number;
-    };
-
-    const processedHistory = sensorHistory.reduce<Record<string, HistoryPoint>>((acc, reading) => {
-      const time = new Date(reading.timestamp).toISOString();
-      const existing = acc[time] ?? { time };
-      if (reading.voltage !== null && reading.voltage !== undefined) {
-        existing.voltage = reading.voltage;
-      }
-      if (reading.current !== null && reading.current !== undefined) {
-        existing.current = reading.current;
-      }
-      if (reading.power !== null && reading.power !== undefined) {
-        existing.power = reading.power;
-      }
-      if (reading.power_factor !== null && reading.power_factor !== undefined) {
-        existing.power_factor = reading.power_factor;
-      }
-      if (reading.energy !== null && reading.energy !== undefined) {
-        existing.energy = reading.energy;
-      }
-      if (reading.frequency !== null && reading.frequency !== undefined) {
-        existing.frequency = reading.frequency;
-      }
-      acc[time] = existing;
-      return acc;
-    }, {});
-
-    const chartData = Object.values(processedHistory).sort(
-      (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime(),
-    );
+    // Sensor readings are now stored in single rows with all data
+    const chartData = historyResult.rows.map(reading => ({
+      time: new Date(reading.timestamp).toISOString(),
+      voltage: reading.voltage ?? undefined,
+      current: reading.current ?? undefined,
+      power: reading.power ?? undefined,
+      power_factor: reading.power_factor ?? undefined,
+      energy: reading.energy ?? undefined,
+      frequency: reading.frequency ?? undefined,
+    }));
 
     return NextResponse.json({
       details: zoneDetails,

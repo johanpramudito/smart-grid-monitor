@@ -142,8 +142,8 @@ export default function ZoneDetailPage() {
     fetchData();
 
     // Subsequent fetches without loading indicator (background refresh)
-    // 800ms provides smooth real-time updates while reducing database load
-    const intervalId = window.setInterval(fetchData, 800); // Updates every 800ms
+    // 2000ms (2 seconds) provides real-time updates while reducing database load
+    const intervalId = window.setInterval(fetchData, 2000); // Updates every 2 seconds
 
     return () => {
       isActive = false;
