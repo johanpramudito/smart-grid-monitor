@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { findDeviceByApiKey } from '../../../../lib/device/registry';
 import { ingestTelemetry } from '../../../../lib/device/telemetry';
+import { wsManager } from '../../../../lib/websocket/manager';
 
 const relaySchema = z.object({
   relay: z.number().int().positive(),
@@ -49,10 +50,15 @@ export async function POST(request: Request) {
     }
 
     const payload = await request.json();
+
+    // Debug logging - show raw payload
+    console.log(`[API] Received telemetry from device ${device.device_id}:`, payload);
+
     const parsed = telemetrySchema.safeParse(payload);
 
     if (!parsed.success) {
       const errors = parsed.error.flatten();
+      console.error(`[API] Telemetry validation failed:`, errors);
       return NextResponse.json(
         {
           message: errors.formErrors[0] ?? 'Invalid telemetry payload.',
@@ -62,11 +68,50 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log(`[API] Telemetry validated, parsed data:`, parsed.data);
+
     const timestamp = parsed.data.timestamp ? new Date(parsed.data.timestamp) : new Date();
-    await ingestTelemetry(device, {
+
+    // Ingest telemetry - returns true if status changed
+    const statusChanged = await ingestTelemetry(device, {
       ...parsed.data,
       timestamp,
     });
+
+    // Broadcast real-time data to WebSocket clients immediately
+    console.log(`[API] 📡 Broadcasting to zone: ${device.zone_agent_id}`);
+    console.log(`[API] 📊 Data:`, {
+      voltage: parsed.data.voltage,
+      current: parsed.data.current,
+      power: parsed.data.power,
+    });
+
+    wsManager.broadcast(device.zone_agent_id, {
+      voltage: parsed.data.voltage,
+      current: parsed.data.current,
+      power: parsed.data.power,
+      power_factor: parsed.data.pf,
+      energy: parsed.data.energy,
+      frequency: parsed.data.frequency,
+      status: parsed.data.status,
+      timestamp: timestamp.toISOString(),
+    });
+
+    // CRITICAL: Broadcast status changes to all dashboard clients
+    // Only broadcast if status actually changed (detected by ingestTelemetry)
+    if (statusChanged && parsed.data.status) {
+      console.log(`[API] 🔔 Status CHANGED to ${parsed.data.status} - broadcasting to ALL dashboard clients`);
+
+      // IMPORTANT: Don't stringify - wsManager.broadcast() will do that
+      wsManager.broadcast('__status_broadcast__', {
+        type: 'status-change',
+        data: {
+          zoneId: device.zone_agent_id,
+          status: parsed.data.status,
+          timestamp: timestamp.toISOString(),
+        }
+      });
+    }
 
     return NextResponse.json({
       message: 'Telemetry ingested successfully.',

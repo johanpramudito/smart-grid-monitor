@@ -29,15 +29,17 @@ export async function GET(
         `SELECT * FROM "ZoneAgent" WHERE zone_agent_id = $1`,
         [zoneId]
       ),
-      // Sensor readings - last 120 readings (60 seconds at 500ms intervals)
-      // This provides better visibility of recent spikes and transients
+      // Sensor readings - last 15 minutes to capture multiple short-duration spikes
+      // Critical: In real scenarios, multiple 5-second spikes can occur with gaps
+      // Time-based filter handles both old (3-row) and new (1-row) formats efficiently
       client.query(`
         SELECT r.timestamp, r.voltage, r.current, r.power, r.power_factor, r.energy, r.frequency
         FROM "SensorReading" r
         JOIN "Sensor" s ON r.sensor_id = s.sensor_id
         WHERE s.zone_agent_id = $1
+          AND r.timestamp > NOW() - INTERVAL '15 minutes'
         ORDER BY r.timestamp DESC
-        LIMIT 120
+        LIMIT 2000
       `, [zoneId]),
       // Fault info (uses idx_eventlog_zone_type_resolved)
       client.query(`
@@ -82,33 +84,62 @@ export async function GET(
     zoneDetails.device_id = deviceData.device_id ?? null;
     zoneDetails.device_last_seen = deviceData.last_seen ?? null;
 
-    // Sensor readings - convert to numbers, omit undefined fields
-    const chartData = historyResult.rows.map(reading => {
-      const dataPoint: Record<string, string | number> = {
-        time: new Date(reading.timestamp).toISOString(),
-      };
+    // Sensor readings - merge rows with same timestamp (for backward compatibility with old 3-row format)
+    // and handle new single-row format
+    type MergedReading = {
+      time: string;
+      voltage?: number;
+      current?: number;
+      power?: number;
+      power_factor?: number;
+      energy?: number;
+      frequency?: number;
+    };
 
+    const mergedData: Record<string, MergedReading> = {};
+
+    historyResult.rows.forEach((reading) => {
+      const timestamp = new Date(reading.timestamp).toISOString();
+
+      if (!mergedData[timestamp]) {
+        mergedData[timestamp] = { time: timestamp };
+      }
+
+      // Merge all non-null values
       if (reading.voltage !== null && reading.voltage !== undefined) {
-        dataPoint.voltage = Number(reading.voltage);
+        mergedData[timestamp].voltage = Number(reading.voltage);
       }
       if (reading.current !== null && reading.current !== undefined) {
-        dataPoint.current = Number(reading.current);
+        mergedData[timestamp].current = Number(reading.current);
       }
       if (reading.power !== null && reading.power !== undefined) {
-        dataPoint.power = Number(reading.power);
+        mergedData[timestamp].power = Number(reading.power);
       }
       if (reading.power_factor !== null && reading.power_factor !== undefined) {
-        dataPoint.power_factor = Number(reading.power_factor);
+        mergedData[timestamp].power_factor = Number(reading.power_factor);
       }
       if (reading.energy !== null && reading.energy !== undefined) {
-        dataPoint.energy = Number(reading.energy);
+        mergedData[timestamp].energy = Number(reading.energy);
       }
       if (reading.frequency !== null && reading.frequency !== undefined) {
-        dataPoint.frequency = Number(reading.frequency);
+        mergedData[timestamp].frequency = Number(reading.frequency);
       }
-
-      return dataPoint;
     });
+
+    // Convert to array and sort by time (oldest first for chart display)
+    const chartData = Object.values(mergedData).sort(
+      (a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()
+    );
+
+    // Debug logging
+    console.log(`[Zone ${zoneId}] Returning ${chartData.length} data points, ${historyResult.rows.length} raw rows`);
+    if (chartData.length > 0) {
+      console.log(`[Zone ${zoneId}] First data point (oldest):`, chartData[0]);
+      console.log(`[Zone ${zoneId}] Last data point (newest):`, chartData[chartData.length - 1]);
+    }
+    if (historyResult.rows.length > 0) {
+      console.log(`[Zone ${zoneId}] Sample raw row:`, historyResult.rows[0]);
+    }
 
     return NextResponse.json({
       details: zoneDetails,

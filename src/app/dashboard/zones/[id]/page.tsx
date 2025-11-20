@@ -22,6 +22,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 // Define the data structures based on our API response
 interface ZoneDetails {
@@ -86,16 +87,22 @@ export default function ZoneDetailPage() {
   const [relayControlLoading, setRelayControlLoading] = useState(false);
   const [relayControlMessage, setRelayControlMessage] = useState<string | null>(null);
 
+  // WebSocket for real-time telemetry updates
+  const { isConnected, lastMessage } = useWebSocket(id as string | null);
+
+  // Debug: Track renders
+  const renderCountRef = useState({ count: 0 })[0];
+  renderCountRef.count++;
+  console.log(`[Zone] 🔄 Render #${renderCountRef.count} | WebSocket connected: ${isConnected} | History length: ${zoneData?.history.length || 0}`);
+
+  // Initial data fetch (only once, no polling)
   useEffect(() => {
     if (!id) return;
 
     let isActive = true;
-    let isFirstFetch = true;
 
     const fetchData = async () => {
-      if (isFirstFetch) {
-        setIsLoading(true);
-      }
+      setIsLoading(true);
       try {
         const response = await fetch(`/api/zones/${id}`, { cache: "no-store" });
         if (!response.ok) {
@@ -104,6 +111,13 @@ export default function ZoneDetailPage() {
         }
         const data: ZoneData = await response.json();
         if (!isActive) return;
+
+        // Debug logging
+        console.log(`[Zone ${id}] Initial fetch: ${data.history?.length || 0} data points`);
+        if (data.history && data.history.length > 0) {
+          console.log('[Zone] Sample data:', data.history[0]);
+        }
+
         setZoneData(data);
 
         // If this is a tie relay (feeder_number 99), fetch all zones for FLISR dashboard
@@ -131,26 +145,74 @@ export default function ZoneDetailPage() {
         setError(err instanceof Error ? err.message : "An unknown error occurred");
       } finally {
         if (!isActive) return;
-        if (isFirstFetch) {
-          setIsLoading(false);
-          isFirstFetch = false;
-        }
+        setIsLoading(false);
       }
     };
 
-    // Initial fetch with loading indicator
     fetchData();
-
-    // Subsequent fetches without loading indicator (background refresh)
-    // 1000ms (1 second) provides real-time updates for fast transient capture
-    // STM32 publishes every 500ms, so 1s polling captures spikes effectively
-    const intervalId = window.setInterval(fetchData, 1000); // Updates every 1 second
 
     return () => {
       isActive = false;
-      window.clearInterval(intervalId);
     };
   }, [id]);
+
+  // Handle real-time WebSocket data
+  useEffect(() => {
+    if (!lastMessage) {
+      console.log('[Zone] useEffect: No lastMessage, skipping');
+      return;
+    }
+
+    if (!zoneData) {
+      console.log('[Zone] useEffect: No zoneData yet, skipping');
+      return;
+    }
+
+    console.log('[Zone] 🔔 WebSocket update received:', lastMessage);
+    console.log('[Zone] Current history length:', zoneData.history.length);
+
+    // Check if status changed (CRITICAL for protection system!)
+    if (lastMessage.status && lastMessage.status !== zoneData.details.status) {
+      console.log(`[Zone] ⚡ CRITICAL: Status changed from ${zoneData.details.status} to ${lastMessage.status}`);
+    }
+
+    // Append new data point to history
+    const newReading: SensorReading = {
+      time: lastMessage.timestamp,
+      voltage: lastMessage.voltage,
+      current: lastMessage.current,
+      power: lastMessage.power,
+      power_factor: lastMessage.power_factor,
+      energy: lastMessage.energy,
+      frequency: lastMessage.frequency,
+    };
+
+    setZoneData((prev): ZoneData | null => {
+      if (!prev) {
+        console.log('[Zone] setZoneData: prev is null, returning');
+        return prev;
+      }
+
+      // Keep last 15 minutes of data to capture multiple spikes (1800 data points max)
+      // Critical: Must capture ALL spikes in real scenarios where multiple 5-second events occur
+      const maxDataPoints = 1800; // 15 minutes * 60 seconds * 2 (500ms interval)
+      const updatedHistory = [...prev.history, newReading].slice(-maxDataPoints);
+
+      console.log('[Zone] ✅ State updated! New history length:', updatedHistory.length);
+      console.log('[Zone] Latest reading:', newReading);
+
+      // Update status if it changed (CRITICAL!)
+      const updatedDetails: ZoneDetails = lastMessage.status && lastMessage.status !== prev.details.status
+        ? { ...prev.details, status: lastMessage.status as ZoneDetails['status'] }
+        : prev.details;
+
+      return {
+        ...prev,
+        details: updatedDetails,
+        history: updatedHistory,
+      };
+    });
+  }, [lastMessage, zoneData]);
 
   const handleRelayControl = async (command: 'CLOSED' | 'OPEN' | 'AUTO') => {
     if (!id) return;
@@ -218,10 +280,20 @@ export default function ZoneDetailPage() {
   const isManualMode = details.status === "MANUAL";
   const isManualOverride = details.manual_override === true;
 
-  const formattedHistory = history.map(h => ({
+  // Format time with deciseconds (tenths of seconds) to avoid duplicate keys
+  // Hardware publishes every 500ms, so we need sub-second precision
+  const formattedHistory = history.map(h => {
+    const date = new Date(h.time);
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const deciseconds = Math.floor(date.getMilliseconds() / 100); // 0-9 (tenths of a second)
+    return {
       ...h,
-      time: new Date(h.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-  }));
+      time: `${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}:${seconds}.${deciseconds}`
+    };
+  });
+
+  // Debug: Log formatted history creation
+  console.log(`[Zone] 📊 Chart data prepared: ${formattedHistory.length} points | First: ${formattedHistory[0]?.time} | Last: ${formattedHistory[formattedHistory.length - 1]?.time}`);
 
   // FLISR logic for tie relay
   const anyZoneFaulted = allZones?.zones.some(z => z.status === 'FAULT') ?? false;

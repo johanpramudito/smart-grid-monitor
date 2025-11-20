@@ -21,6 +21,7 @@ import {
   type RelayNodeData,
   type TieRelayNodeData,
 } from "@/components/topology/CustomNodes";
+import { useStatusUpdates } from "@/hooks/useStatusUpdates";
 
 type ZoneNodeData = {
   label: string;
@@ -42,6 +43,9 @@ export default function TopologyPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tieClosed, setTieClosed] = useState(false);
+
+  // Real-time status updates via WebSocket
+  const { lastStatusUpdate } = useStatusUpdates();
 
   const buildGraph = useCallback(
     (data: { nodes: ZoneNode[]; tieClosed?: boolean }) => {
@@ -378,16 +382,90 @@ export default function TopologyPage() {
     [setNodes, setEdges, buildGraph]
   );
 
+  // Handle real-time status updates via WebSocket
+  useEffect(() => {
+    if (!lastStatusUpdate) return;
+
+    console.log('[Topology] ⚡ Status update received:', lastStatusUpdate);
+
+    // Update nodes immediately when status changes
+    setNodes((prevNodes) => {
+      // Find the sensor node for this zone
+      const sensorNodeId = `sensor-${lastStatusUpdate.zoneId}`;
+      const relayNodeId = `relay-${lastStatusUpdate.zoneId}`;
+      const tieNodeId = lastStatusUpdate.zoneId; // Could be tie relay
+
+      let updated = false;
+
+      const updatedNodes = prevNodes.map((node) => {
+        // Update sensor node status
+        if (node.id === sensorNodeId && node.data) {
+          updated = true;
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              status: lastStatusUpdate.status as ZoneStatus,
+            },
+          };
+        }
+
+        // Update relay node status
+        if (node.id === relayNodeId && node.data) {
+          updated = true;
+          const newRelayState =
+            lastStatusUpdate.status === 'FAULT' || lastStatusUpdate.status === 'ISOLATED'
+              ? 'OPEN'
+              : lastStatusUpdate.status === 'OFFLINE'
+              ? 'UNKNOWN'
+              : 'CLOSED';
+
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              status: lastStatusUpdate.status as ZoneStatus,
+              state: newRelayState,
+            },
+          };
+        }
+
+        // Update tie relay node if this is the tie zone
+        if (node.id === tieNodeId && node.type === 'tieRelay' && node.data) {
+          updated = true;
+          return {
+            ...node,
+            data: {
+              ...node.data,
+              status: lastStatusUpdate.status as ZoneStatus,
+            },
+          };
+        }
+
+        return node;
+      });
+
+      if (updated) {
+        console.log(`[Topology] 🔄 Updated nodes for zone ${lastStatusUpdate.zoneId}`);
+      }
+
+      return updatedNodes;
+    });
+
+    // Also update edges to reflect new connection colors
+    // Trigger a background refresh to recalculate edge colors
+    setTimeout(() => fetchTopology(false), 100);
+  }, [lastStatusUpdate, setNodes, fetchTopology]);
+
   useEffect(() => {
     // Initial fetch with loading indicator
     fetchTopology(true);
 
-    // Subsequent fetches without loading indicator (background refresh)
-    // For Vercel: 500ms is safest, but 200ms works if traffic is low
-    // For Azure App Service: 200ms is safe and provides real-time feel
+    // Reduced polling - WebSocket handles real-time updates
+    // Only poll every 10 seconds for background sync
     const interval = setInterval(() => {
       fetchTopology(false);
-    }, 200); // Real-time updates (5 per second)
+    }, 10000); // Background sync every 10 seconds
 
     return () => clearInterval(interval);
   }, [fetchTopology]);

@@ -16,6 +16,7 @@ import {
   RotateCcw,
 } from "lucide-react";
 import { getStatusConfig } from "@/lib/utils/status";
+import { useStatusUpdates } from "@/hooks/useStatusUpdates";
 
 // Data structure for a single zone, fetched from the new /api/topology endpoint
 interface Zone {
@@ -55,6 +56,9 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
+
+  // Real-time status updates via WebSocket
+  const { lastStatusUpdate } = useStatusUpdates();
 
   useEffect(() => {
     async function fetchData(showLoading = false) {
@@ -107,12 +111,33 @@ export default function DashboardPage() {
     // Initial fetch with loading indicator
     fetchData(true);
 
-    // Subsequent fetches without loading indicator (background refresh)
-    // For Vercel: 500ms is safest, but 200ms works if traffic is low
-    // For Azure App Service: 200ms is safe and provides real-time feel
-    const interval = setInterval(() => fetchData(false), 200); // Real-time updates (5 per second)
+    // Reduced polling - WebSocket handles real-time updates
+    // Only poll every 10 seconds for background sync
+    const interval = setInterval(() => fetchData(false), 10000);
     return () => clearInterval(interval);
   }, []);
+
+  // Handle real-time status updates via WebSocket
+  useEffect(() => {
+    if (!lastStatusUpdate) return;
+
+    console.log('[Dashboard] ⚡ Status update received:', lastStatusUpdate);
+
+    // Update the zone's status immediately
+    setZones((prevZones) =>
+      prevZones.map((zone) =>
+            zone.id === lastStatusUpdate.zoneId
+          ? {
+              ...zone,
+              data: {
+                ...zone.data,
+                status: lastStatusUpdate.status as Zone["data"]["status"],
+              },
+            }
+          : zone
+      )
+    );
+  }, [lastStatusUpdate]);
 
   // Handle restore all open relays
   async function handleRestoreAll() {
